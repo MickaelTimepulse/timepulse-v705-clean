@@ -1,18 +1,40 @@
+# Dependencies
 node_modules
+
+# Environment files
 .env
 .env.local
+
+# Logs
 *.log
-.git
+
+# IDE
 .vscode
 .idea
+
+# Documentation - Keep README.md for Vercel
 *.md
-docs/
+!README.md
+
+# Backups
 backups/
+
+# Database
 supabase/migrations/
+*.sql
+
+# Scripts
 *.sh
 *.bat
+
+# Test HTML files (but NOT index.html in root)
 test-*.html
-*.sql
+run-migration.html
+fix-*.html
+apply-*.html
+resultats-*.html
+
+# Sensitive files
 AdminUsers.txt
 ADMIN_CREDENTIALS.txt
 
@@ -21,3 +43,9 @@ ADMIN_CREDENTIALS.txt
 .vite-cache
 node_modules/.cache
 node_modules/.vite
+
+# Git directory
+.git
+
+# Compressed archives
+*.tar.gz
