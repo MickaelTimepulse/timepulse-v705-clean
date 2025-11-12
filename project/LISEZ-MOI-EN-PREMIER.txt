@@ -1,0 +1,98 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║    ⚠️  LE BOUTON "PUBLISH" DE BOLT NE FONCTIONNE PAS ⚠️      ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+
+🔴 POURQUOI ?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Bolt recrée automatiquement des fichiers avec ACCENTS et ESPACES
+dans son workspace, même après suppression.
+
+Vercel refuse ces fichiers → Erreur "unsupported character"
+
+
+✅ SOLUTION GARANTIE (5 minutes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1️⃣  Télécharger ce projet depuis Bolt
+    → Bouton "Download" ou "Export"
+
+2️⃣  Extraire le ZIP sur votre ordinateur
+
+3️⃣  Ouvrir un terminal dans le dossier extrait
+
+4️⃣  Lancer le script de nettoyage :
+
+    chmod +x clean-for-deploy.sh
+    ./clean-for-deploy.sh
+
+5️⃣  Créer un repo GitHub et pousser :
+
+    git init
+    git add .
+    git commit -m "Initial commit - clean version"
+    git branch -M main
+    git remote add origin https://github.com/VOTRE-USERNAME/timepulse.git
+    git push -u origin main
+
+6️⃣  Déployer sur Vercel :
+
+    → Aller sur vercel.com
+    → Cliquer "New Project"
+    → Importer depuis GitHub
+    → Choisir votre repo "timepulse"
+    → Ajouter les variables d'environnement :
+      VITE_SUPABASE_URL
+      VITE_SUPABASE_ANON_KEY
+    → Cliquer "Deploy"
+
+✅ Ça marchera à 100% !
+
+
+📋 ALTERNATIVE : Déploiement manuel sur Vercel
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Après l'étape 4 (nettoyage), au lieu de GitHub :
+
+5️⃣  Installer Vercel CLI :
+    npm install -g vercel
+
+6️⃣  Déployer directement :
+    vercel --prod
+
+7️⃣  Configurer les variables d'environnement quand demandé
+
+
+🎯 POURQUOI CETTE MÉTHODE MARCHE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Le projet téléchargé contient les fichiers problématiques
+✅ Le script clean-for-deploy.sh les supprime définitivement
+✅ Git/Vercel déploient le projet nettoyé
+✅ Bolt n'est plus impliqué → pas de recréation de fichiers
+
+
+⚠️  NE PAS UTILISER "PUBLISH" DANS BOLT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Le bouton "Publish" de Bolt publie le WORKSPACE de Bolt.
+→ Utilisez Download + GitHub + Vercel à la place
+
+
+🔒 VOS DONNÉES SONT EN SÉCURITÉ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Toutes vos données sont dans Supabase (événements, inscriptions, etc.)
+Le nettoyage supprime uniquement des images de démo jamais utilisées.
+
+
+💡 ASTUCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Une fois déployé, vous pourrez mettre à jour en poussant sur GitHub.
+Plus besoin de Bolt !
+
+═══════════════════════════════════════════════════════════════

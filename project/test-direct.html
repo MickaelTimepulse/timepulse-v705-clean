@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Direct - Timepulse</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+        .status {
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .status h2 {
+            color: #22c55e;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        .info {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .timestamp {
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Test Direct HTML</h1>
+
+        <div class="status">
+            <h2>✅ Preview Fonctionne!</h2>
+            <p>Ce fichier HTML est servi directement sans build, sans React, sans rien.</p>
+        </div>
+
+        <div class="info">
+            <h3>Informations Techniques</h3>
+            <ul>
+                <li><strong>Fichier:</strong> test-direct.html</li>
+                <li><strong>Framework:</strong> Aucun (HTML pur)</li>
+                <li><strong>Build:</strong> Non requis</li>
+                <li><strong>Statut:</strong> Si vous voyez ceci, le serveur web fonctionne</li>
+            </ul>
+        </div>
+
+        <p style="margin-top: 20px;">
+            <strong>Conclusion:</strong> Si cette page s'affiche mais pas l'application React,
+            le problème vient de la configuration du serveur de développement ou du chemin
+            vers les assets buildés.
+        </p>
+
+        <div class="timestamp">
+            Généré le: <span id="timestamp"></span>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('timestamp').textContent = new Date().toLocaleString('fr-FR');
+    </script>
+</body>
+</html>

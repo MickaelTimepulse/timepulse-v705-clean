@@ -1,0 +1,44 @@
+diff --git a/src/components/Home/CTA.tsx b/src/components/Home/CTA.tsx
+--- a/src/components/Home/CTA.tsx
++++ b/src/components/Home/CTA.tsx
+@@ -4,7 +4,14 @@ import { Calendar, ArrowRight } from 'lucide-react';
+ export default function CTA() {
+   return (
+     <section className="relative py-20 overflow-hidden">
+-      <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-800"></div>
++      {/* Background image with 50% opacity - Mountain landscape */}
++      <div
++        className="absolute inset-0 opacity-50 bg-cover bg-center"
++        style={{
++          backgroundImage: 'url(https://images.pexels.com/photos/417074/pexels-photo-417074.jpeg?auto=compress&cs=tinysrgb&w=1920)',
++        }}
++      ></div>
++
++      {/* White overlay for softening */}
+       <div className="absolute inset-0 bg-black/20"></div>
+       
+       <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+
+diff --git a/src/components/Home/EventList.tsx b/src/components/Home/EventList.tsx
+--- a/src/components/Home/EventList.tsx
++++ b/src/components/Home/EventList.tsx
+@@ -85,7 +85,17 @@ export default function EventList() {
+   }
+ 
+   return (
+-    <section id="events" className="py-20 bg-gradient-to-b from-gray-50 to-white">
++    <section id="events" className="relative py-12 overflow-hidden">
++      {/* Background image with 50% opacity */}
++      <div
++        className="absolute inset-0 opacity-50 bg-cover bg-center"
++        style={{
++          backgroundImage: 'url(https://images.pexels.com/photos/2524874/pexels-photo-2524874.jpeg?auto=compress&cs=tinysrgb&w=1920)',
++        }}
++      ></div>
++
++      {/* White overlay for softening */}
++      <div className="absolute inset-0 bg-white/40"></div>
++
+       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+         <div className="text-center mb-16">
+           <h2 className="text-4xl font-bold text-gray-900">Événements à venir</h2>

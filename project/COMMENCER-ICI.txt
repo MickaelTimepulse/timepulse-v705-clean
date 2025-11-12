@@ -1,0 +1,90 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║      ⚠️  LISEZ CECI AVANT DE PUBLIER DEPUIS BOLT ⚠️          ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+🔴 LE PROBLÈME
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Le bouton "Publish" de Bolt publie le WORKSPACE de Bolt, qui contient
+des fichiers avec ACCENTS et ESPACES que Bolt recrée automatiquement.
+
+Vercel refuse ces fichiers → Erreur "unsupported character"
+
+
+✅ LA SOLUTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NE PAS utiliser "Publish" dans Bolt !
+
+À LA PLACE :
+
+1. Cliquer sur "Download" ou "Export" dans Bolt
+
+2. Extraire le ZIP sur votre ordinateur
+
+3. Ouvrir un terminal et lancer :
+   
+   cd projet-extrait
+   ./clean-for-deploy.sh
+
+4. Pousser vers GitHub :
+   
+   git init
+   git add .
+   git commit -m "Clean deploy"
+   git push
+
+5. Vercel déploiera automatiquement depuis GitHub ✅
+
+
+🎯 FICHIERS À SUPPRIMER MANUELLEMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Si vous voulez quand même utiliser "Publish" dans Bolt,
+supprimez d'abord ces fichiers dans public/ :
+
+❌ OUT copy.png
+❌ time copy.png
+❌ image copy.png
+❌ open water.jpeg
+❌ open water copy.jpeg
+❌ test import bdd.csv
+❌ licence 2025 2026.jpg
+❌ coureur victoire 1.jpeg
+❌ course piste stade.jpeg
+❌ tour eiffel coureur.jpeg
+❌ course à pied masse 1.jpeg
+❌ course à pied masse 2.jpeg
+
+Et TOUS leurs duplicatas (copy, etc.)
+
+
+✅ GARDEZ UNIQUEMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ AdobeStock_1549036275.jpeg (SANS copy)
+✅ OUT.png (SANS copy)
+✅ time.png (SANS copy)
+✅ image.png (SANS copy)
+✅ dossardsite.png
+✅ triathlete.jpeg
+✅ solar-eclipse-hd-4k-space-585bmk4grpijoamp.jpg
+
+
+🚀 RÉSUMÉ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Le problème = Bolt recrée automatiquement les fichiers problématiques
+
+La solution = NE PAS utiliser "Publish", mais :
+   Download → Clean → GitHub → Vercel
+
+OU
+
+   Supprimer manuellement les 14 fichiers listés ci-dessus
+   PUIS cliquer sur "Publish"
+
+
+Cette fois ça marchera ! 🎉

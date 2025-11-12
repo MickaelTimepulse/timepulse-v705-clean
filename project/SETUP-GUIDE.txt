@@ -1,0 +1,87 @@
+═══════════════════════════════════════════════════════════════
+    GUIDE DE PUBLICATION DEPUIS BOLT → VERCEL
+═══════════════════════════════════════════════════════════════
+
+📋 ÉTAPES À SUIVRE DANS L'ORDRE
+
+┌─────────────────────────────────────────────────────────────┐
+│ ÉTAPE 1 : Supprimer les fichiers problématiques dans Bolt  │
+└─────────────────────────────────────────────────────────────┘
+
+Dans la sidebar de Bolt, aller dans public/ et SUPPRIMER :
+
+  public/
+    ├─ ❌ OUT copy.png              <- SUPPRIMER
+    ├─ ❌ time copy.png             <- SUPPRIMER  
+    ├─ ❌ image copy.png            <- SUPPRIMER
+    ├─ ❌ open water.jpeg           <- SUPPRIMER
+    ├─ ❌ open water copy.jpeg      <- SUPPRIMER
+    ├─ ❌ test import bdd.csv       <- SUPPRIMER
+    ├─ ❌ licence 2025 2026.jpg     <- SUPPRIMER
+    ├─ ❌ coureur victoire 1.jpeg   <- SUPPRIMER
+    ├─ ❌ coureur victoire 1 copy.jpeg <- SUPPRIMER
+    ├─ ❌ course piste stade.jpeg   <- SUPPRIMER
+    ├─ ❌ tour eiffel coureur.jpeg  <- SUPPRIMER
+    ├─ ❌ course à pied masse 1.jpeg <- SUPPRIMER
+    ├─ ❌ course à pied masse 2.jpeg <- SUPPRIMER
+    └─ ❌ AdobeStock_1549036275 copy.jpeg <- SUPPRIMER
+
+GARDEZ UNIQUEMENT :
+    ├─ ✅ AdobeStock_1549036275.jpeg (sans "copy")
+    ├─ ✅ OUT.png (sans "copy")
+    ├─ ✅ time.png (sans "copy")
+    ├─ ✅ image.png (sans "copy")
+    ├─ ✅ dossardsite.png
+    ├─ ✅ triathlete.jpeg
+    └─ ✅ solar-eclipse-hd-4k-space-585bmk4grpijoamp.jpg
+
+┌─────────────────────────────────────────────────────────────┐
+│ ÉTAPE 2 : Supprimer le dossier dist/                       │
+└─────────────────────────────────────────────────────────────┘
+
+Dans Bolt, supprimer complètement le dossier :
+  ❌ dist/
+
+Ce dossier sera recréé automatiquement propre.
+
+┌─────────────────────────────────────────────────────────────┐
+│ ÉTAPE 3 : Rebuild                                           │
+└─────────────────────────────────────────────────────────────┘
+
+Dans le terminal de Bolt, lancer :
+  npm run build
+
+Attendre le message :
+  ✓ built in XXs
+
+┌─────────────────────────────────────────────────────────────┐
+│ ÉTAPE 4 : Publier                                           │
+└─────────────────────────────────────────────────────────────┘
+
+Cliquer sur le bouton "Publish" dans Bolt
+
+Cette fois, Vercel acceptera sans erreur ! ✅
+
+
+═══════════════════════════════════════════════════════════════
+
+⚠️  IMPORTANT
+
+Si les fichiers reviennent après suppression, c'est que Bolt les
+recrée automatiquement.
+
+Dans ce cas, utilisez plutôt :
+  1. Download depuis Bolt
+  2. ./clean-for-deploy.sh
+  3. git push
+  4. Déploiement automatique par Vercel
+
+═══════════════════════════════════════════════════════════════
+
+📞 AIDE
+
+- COMMENCER-ICI.txt : Explications détaillées
+- clean-for-deploy.sh : Script de nettoyage automatique
+- verify-vercel-compatibility.sh : Vérification avant publication
+
+═══════════════════════════════════════════════════════════════

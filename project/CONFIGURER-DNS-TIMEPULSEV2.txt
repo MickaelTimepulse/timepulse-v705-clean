@@ -1,0 +1,123 @@
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║        CONFIGURATION DNS POUR timepulsev2.com                  ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+⚠️  PROBLÈME DÉTECTÉ : Configuration DNS non valide
+
+Le domaine timepulsev2.com n'est pas correctement pointé vers Vercel.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 CE QU'IL FAUT FAIRE
+
+Vous devez configurer les DNS chez votre registrar de domaine
+(là où vous avez acheté timepulsev2.com)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 ENREGISTREMENTS DNS À AJOUTER
+
+Type : A
+Nom : @
+Valeur : 76.76.21.21
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔧 ÉTAPES DÉTAILLÉES
+
+1️⃣ Identifier votre registrar
+
+   Où avez-vous acheté timepulsev2.com ?
+   - OVH
+   - Gandi
+   - Namecheap
+   - GoDaddy
+   - Autre ?
+
+2️⃣ Accéder à la gestion DNS
+
+   Connectez-vous sur le site de votre registrar
+   Allez dans : Gestion DNS / Zone DNS / DNS Records
+
+3️⃣ Modifier l'enregistrement A existant
+
+   Cherchez l'enregistrement de type "A" avec le nom "@"
+   
+   Actuel : 216.198.79.1 (incorrect)
+   
+   Remplacer par : 76.76.21.21
+
+4️⃣ Sauvegarder
+
+   Cliquez sur "Sauvegarder" / "Save" / "Valider"
+
+5️⃣ Attendre la propagation
+
+   Temps de propagation : 5 minutes à 48 heures
+   (généralement 15-30 minutes)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 CONFIGURATION COMPLÈTE RECOMMANDÉE
+
+Pour une configuration optimale, ajoutez aussi :
+
+Type : CNAME
+Nom : www
+Valeur : cname.vercel-dns.com
+
+Cela permettra à www.timepulsev2.com de fonctionner aussi.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🧪 VÉRIFIER LA CONFIGURATION
+
+Une fois les DNS modifiés, vérifiez avec cette commande :
+
+   nslookup timepulsev2.com
+
+Vous devriez voir : 76.76.21.21
+
+Ou testez en ligne :
+   https://dnschecker.org/#A/timepulsev2.com
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ UNE FOIS LES DNS CONFIGURÉS
+
+1. Attendez 15-30 minutes
+2. Testez : https://timepulsev2.com
+3. Si ça ne fonctionne toujours pas :
+   - Videz le cache de votre navigateur
+   - Testez en navigation privée
+   - Attendez encore un peu
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 GUIDES PAR REGISTRAR
+
+OVH :
+https://docs.ovh.com/fr/domains/editer-ma-zone-dns/
+
+Gandi :
+https://docs.gandi.net/fr/dns/zone/
+
+Namecheap :
+https://www.namecheap.com/support/knowledgebase/article.aspx/319/
+
+GoDaddy :
+https://fr.godaddy.com/help/modifier-un-enregistrement-dns-680
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❓ BESOIN D'AIDE ?
+
+Dites-moi :
+1. Chez quel registrar est votre domaine ?
+2. Je vous guiderai étape par étape !
+
+╔════════════════════════════════════════════════════════════════╗
+║  EN RÉSUMÉ : Changez 216.198.79.1 → 76.76.21.21              ║
+╚════════════════════════════════════════════════════════════════╝

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fix Bib Exchange Public Access</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h1>Fix Bib Exchange Public Access</h1>
+  <button onclick="applyMigration()">Apply Migration</button>
+  <pre id="output"></pre>
+
+  <script>
+    const supabaseUrl = 'https://fgstscztsighabpzzzix.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnc3RzY3p0c2lnaGFicHp6eml4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NTc4OTksImV4cCI6MjA3NjAzMzg5OX0.K4khoKUHqRy17pweIHVO0_t9WbA0JoTyroleSY4FHr0';
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+    async function applyMigration() {
+      const output = document.getElementById('output');
+      output.textContent = 'Applying migration...\n';
+
+      const sql = `
+-- Drop the existing public policy
+DROP POLICY IF EXISTS "Public can view bib exchange settings" ON bib_exchange_settings;
+
+-- Create new policy for anonymous and authenticated users
+CREATE POLICY "Anyone can view enabled bib exchange settings"
+  ON bib_exchange_settings FOR SELECT
+  USING (is_enabled = true);
+      `;
+
+      try {
+        const { data, error } = await supabase.rpc('exec_sql', { sql_query: sql });
+
+        if (error) {
+          output.textContent += 'Error: ' + JSON.stringify(error, null, 2);
+        } else {
+          output.textContent += 'Migration applied successfully!\n';
+          output.textContent += JSON.stringify(data, null, 2);
+        }
+      } catch (err) {
+        output.textContent += 'Exception: ' + err.message;
+      }
+    }
+  </script>
+</body>
+</html>

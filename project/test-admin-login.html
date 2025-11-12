@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Admin Login - Timepulse</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #e91e63; }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background: #e91e63;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #c2185b; }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Test Admin Login</h1>
+
+        <div>
+            <label>Email:</label>
+            <input type="email" id="email" value="mickael@timepulse.fr" />
+        </div>
+
+        <div>
+            <label>Mot de passe:</label>
+            <input type="password" id="password" value="Timepulse2025@!" />
+        </div>
+
+        <button onclick="testLogin()">Tester la connexion</button>
+        <button onclick="clearStorage()">Effacer localStorage</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Récupérer les variables d'environnement depuis votre .env
+        const SUPABASE_URL = prompt("Entrez votre SUPABASE_URL:");
+        const SUPABASE_ANON_KEY = prompt("Entrez votre SUPABASE_ANON_KEY:");
+
+        if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+            alert("Variables d'environnement manquantes !");
+        }
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function testLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('result');
+
+            resultDiv.innerHTML = '<div class="info">Test en cours...</div>';
+
+            try {
+                console.log('Testing with:', { email, password });
+
+                // Test 1: Appel direct à la fonction RPC
+                const { data, error } = await supabase.rpc('verify_admin_password', {
+                    p_email: email,
+                    p_password: password,
+                });
+
+                console.log('RPC Response:', { data, error });
+
+                if (error) {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Erreur RPC</h3>
+                            <p><strong>Message:</strong> ${error.message}</p>
+                            <p><strong>Details:</strong> ${error.details || 'N/A'}</p>
+                            <p><strong>Hint:</strong> ${error.hint || 'N/A'}</p>
+                            <pre>${JSON.stringify(error, null, 2)}</pre>
+                        </div>
+                    `;
+                    return;
+                }
+
+                if (!data || data.length === 0) {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Authentification échouée</h3>
+                            <p>Email ou mot de passe incorrect</p>
+                            <p><strong>Data retournée:</strong> ${JSON.stringify(data)}</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Succès
+                const user = data[0];
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Connexion réussie !</h3>
+                        <p><strong>User ID:</strong> ${user.user_id}</p>
+                        <p><strong>Email:</strong> ${user.user_email}</p>
+                        <p><strong>Nom:</strong> ${user.user_name}</p>
+                        <p><strong>Rôle:</strong> ${user.user_role}</p>
+                        <p><strong>Org ID:</strong> ${user.org_id || 'null'}</p>
+                        <hr>
+                        <h4>Réponse complète:</h4>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+
+                // Test 2: Mettre à jour last_login
+                await supabase.rpc('update_last_login', {
+                    p_user_id: user.user_id
+                });
+
+            } catch (err) {
+                console.error('Exception:', err);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Exception JavaScript</h3>
+                        <p>${err.message}</p>
+                        <pre>${err.stack}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        function clearStorage() {
+            localStorage.clear();
+            sessionStorage.clear();
+            alert('localStorage et sessionStorage effacés !');
+            document.getElementById('result').innerHTML = '<div class="info">Cache effacé avec succès</div>';
+        }
+    </script>
+</body>
+</html>

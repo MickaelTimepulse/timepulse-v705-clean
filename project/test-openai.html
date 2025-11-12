@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test OpenAI API</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: linear-gradient(to right, #9333ea, #db2777);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            white-space: pre-wrap;
+        }
+        .error {
+            background: #fef2f2;
+            border-color: #ef4444;
+            color: #dc2626;
+        }
+        .success {
+            background: #f0fdf4;
+            border-color: #22c55e;
+            color: #16a34a;
+        }
+        .log {
+            font-family: monospace;
+            font-size: 12px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        h1 {
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #6b7280;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test OpenAI API - Timepulse</h1>
+        <p>Ce test va vérifier si votre clé API OpenAI fonctionne correctement</p>
+
+        <button id="testBtn" onclick="testOpenAI()">🚀 Tester la génération SEO</button>
+
+        <div id="result"></div>
+        <div id="logs" class="log" style="display: none;"></div>
+    </div>
+
+    <script type="module">
+        const SUPABASE_URL = 'https://zetqgutaaeaizhhonbqw.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpldHFndXRhYWVhaXpoaG9uYnF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ3NTAxNjksImV4cCI6MjA2MDMyNjE2OX0.aZdOiYhTXMFP_gB3BsAoxbPuKyF8sJKEJq7zF2KtT_k';
+
+        let logs = [];
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.push(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
+            const logsDiv = document.getElementById('logs');
+            logsDiv.style.display = 'block';
+            logsDiv.textContent = logs.join('\n');
+            console.log(message);
+        }
+
+        window.testOpenAI = async function() {
+            const btn = document.getElementById('testBtn');
+            const resultDiv = document.getElementById('result');
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Test en cours...';
+            resultDiv.innerHTML = '';
+            logs = [];
+
+            try {
+                addLog('Démarrage du test OpenAI');
+
+                // Étape 1: Récupérer la clé API depuis Supabase
+                addLog('Récupération de la clé API depuis Supabase...');
+
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.openai_api_key&select=value`, {
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erreur Supabase: ${response.status}`);
+                }
+
+                const data = await response.json();
+                addLog(`Données reçues de Supabase: ${JSON.stringify(data)}`);
+
+                if (!data || data.length === 0) {
+                    throw new Error('Aucune clé API trouvée dans la base de données');
+                }
+
+                const apiKey = data[0].value;
+
+                if (!apiKey || apiKey === '') {
+                    throw new Error('La clé API est vide');
+                }
+
+                addLog(`Clé API trouvée: ${apiKey.substring(0, 20)}...`);
+
+                // Étape 2: Appeler l'API OpenAI
+                addLog('Appel de l\'API OpenAI...');
+
+                const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'Tu es un expert SEO pour Timepulse, spécialisé dans le chronométrage sportif.'
+                            },
+                            {
+                                role: 'user',
+                                content: 'Génère un titre SEO et une description pour une page "Chronométrage Professionnel". Format JSON: {"title": "...", "description": "..."}'
+                            }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 300,
+                        response_format: { type: 'json_object' }
+                    })
+                });
+
+                addLog(`Statut de la réponse OpenAI: ${openaiResponse.status}`);
+
+                if (!openaiResponse.ok) {
+                    const errorData = await openaiResponse.json();
+                    addLog(`Erreur OpenAI: ${JSON.stringify(errorData)}`, 'error');
+                    throw new Error(`OpenAI API error: ${openaiResponse.status} - ${errorData.error?.message || 'Unknown error'}`);
+                }
+
+                const openaiData = await openaiResponse.json();
+                addLog(`Réponse OpenAI reçue: ${JSON.stringify(openaiData, null, 2)}`);
+
+                const result = JSON.parse(openaiData.choices[0].message.content);
+                addLog(`Résultat parsé: ${JSON.stringify(result, null, 2)}`, 'success');
+
+                // Affichage du résultat
+                resultDiv.innerHTML = `
+                    <div class="result success">
+                        <h3>✅ Succès !</h3>
+                        <p><strong>Titre généré:</strong> ${result.title}</p>
+                        <p><strong>Description générée:</strong> ${result.description}</p>
+                    </div>
+                `;
+
+            } catch (error) {
+                addLog(`ERREUR: ${error.message}`, 'error');
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Erreur</h3>
+                        <p>${error.message}</p>
+                        <p><small>Consultez les logs ci-dessous pour plus de détails</small></p>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 Tester la génération SEO';
+            }
+        };
+    </script>
+</body>
+</html>

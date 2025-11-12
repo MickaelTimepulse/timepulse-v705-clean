@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Connexion FFA - Timepulse</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            padding: 12px 30px;
+            margin: 10px 5px 10px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 2px solid #17a2b8;
+            color: #0c5460;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            color: #856404;
+        }
+        pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 5px;
+        }
+        .badge-success { background: #28a745; color: white; }
+        .badge-danger { background: #dc3545; color: white; }
+        .badge-warning { background: #ffc107; color: #333; }
+        .badge-info { background: #17a2b8; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏃‍♂️ Test Connexion FFA</h1>
+        <p class="subtitle">Tester la connexion au webservice FFA STCHRONO_V2</p>
+
+        <div class="section">
+            <h3>📋 Identifiants FFA (enregistrés)</h3>
+            <div class="form-group">
+                <label>UID (Identifiant SIFFA):</label>
+                <input type="text" id="uid" value="FOURCHEROT" />
+            </div>
+            <div class="form-group">
+                <label>MDP (Mot de passe SIFFA):</label>
+                <input type="password" id="mdp" value="Lucas13@!" />
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>🧪 Données de test</h3>
+            <div class="form-group">
+                <label>Athlète de test:</label>
+                <select id="testAthlete" onchange="loadTestAthlete()">
+                    <option value="licence">Licence COMP - ROBERT Jonathan</option>
+                    <option value="tp">Pass J'aime Courir - LEDOGAR Stephane</option>
+                    <option value="pps">PPS - DUPONT Jean</option>
+                    <option value="cf">Carte Fidélité - LEDOGAR Stephane</option>
+                    <option value="non_licencie">Non licencié - RALL Raoul</option>
+                    <option value="licencie">Licencié - DE OLIVEIRA Julien</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>N° Relation (Licence/TP/PPS/CF):</label>
+                <input type="text" id="numrel" value="1756134" />
+                <small style="color: #666;">Laisser vide pour recherche par identité</small>
+            </div>
+            <div class="form-group">
+                <label>Nom:</label>
+                <input type="text" id="nom" value="ROBERT" />
+            </div>
+            <div class="form-group">
+                <label>Prénom:</label>
+                <input type="text" id="prenom" value="JONATHAN" />
+            </div>
+            <div class="form-group">
+                <label>Sexe:</label>
+                <select id="sexe">
+                    <option value="M">M (Homme)</option>
+                    <option value="F">F (Femme)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Date de naissance:</label>
+                <input type="text" id="date_nai" value="1991" placeholder="DD/MM/YYYY ou YYYY" />
+            </div>
+        </div>
+
+        <button class="btn-primary" onclick="testConnection()">🔌 Tester la connexion FFA</button>
+        <button class="btn-secondary" onclick="showDocumentation()">📖 Voir la documentation</button>
+
+        <div id="result"></div>
+
+        <div id="documentation" style="display: none;" class="section">
+            <h3>📚 Documentation FFA</h3>
+            <p><strong>URL Webservice:</strong> http://webservicesffa.athle.fr/St_Chrono/STCHRONO.asmx</p>
+            <p><strong>Méthode SOAP:</strong> STCHRONO_V2</p>
+            <p><strong>Code compétition TEST:</strong> 000000</p>
+            <p><strong>Date compétition TEST:</strong> 01/01/1900</p>
+
+            <h4>Codes d'erreur courants:</h4>
+            <ul>
+                <li><strong>PROx003:</strong> Numéro de licence introuvable</li>
+                <li><strong>PROx004:</strong> Numéro de TP introuvable</li>
+                <li><strong>PROx006:</strong> Relation expirée à la date de la compétition</li>
+                <li><strong>PROx007:</strong> Identité incorrecte ou couple relation/identité faux</li>
+                <li><strong>PROx011:</strong> ⚠️ Non autorisé (identifiants invalides)</li>
+                <li><strong>PROx012:</strong> ⚠️ Service bloqué (contacter FFA)</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const TEST_ATHLETES = {
+            licence: {
+                numrel: '1756134',
+                nom: 'ROBERT',
+                prenom: 'JONATHAN',
+                sexe: 'M',
+                date_nai: '1991'
+            },
+            tp: {
+                numrel: 'T195377',
+                nom: 'LEDOGAR',
+                prenom: 'STEPHANE',
+                sexe: 'M',
+                date_nai: '14/12/1972'
+            },
+            pps: {
+                numrel: 'P5CVC84A8F6',
+                nom: 'DUPONT',
+                prenom: 'JEAN',
+                sexe: 'M',
+                date_nai: '14/12/1980'
+            },
+            cf: {
+                numrel: 'CF030716',
+                nom: 'LEDOGAR',
+                prenom: 'STEPHANE',
+                sexe: 'M',
+                date_nai: '14/12/1972'
+            },
+            non_licencie: {
+                numrel: '',
+                nom: 'RALL',
+                prenom: 'RAOUL',
+                sexe: 'M',
+                date_nai: '25/01/1965'
+            },
+            licencie: {
+                numrel: '102802',
+                nom: 'DE OLIVEIRA',
+                prenom: 'JULIEN',
+                sexe: 'M',
+                date_nai: '26/12/1988'
+            }
+        };
+
+        function loadTestAthlete() {
+            const selectedType = document.getElementById('testAthlete').value;
+            const athlete = TEST_ATHLETES[selectedType];
+
+            document.getElementById('numrel').value = athlete.numrel;
+            document.getElementById('nom').value = athlete.nom;
+            document.getElementById('prenom').value = athlete.prenom;
+            document.getElementById('sexe').value = athlete.sexe;
+            document.getElementById('date_nai').value = athlete.date_nai;
+        }
+
+        async function testConnection() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="info">🔄 Test en cours... Connexion au webservice FFA...</div>';
+
+            const uid = document.getElementById('uid').value;
+            const mdp = document.getElementById('mdp').value;
+            const numrel = document.getElementById('numrel').value;
+            const nom = document.getElementById('nom').value.toUpperCase();
+            const prenom = document.getElementById('prenom').value.toUpperCase();
+            const sexe = document.getElementById('sexe').value;
+            const date_nai = document.getElementById('date_nai').value;
+
+            // Construire le SOAP envelope
+            const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <STCHRONO_V2 xmlns="http://www.athle.fr/">
+      <E_UID>${uid}</E_UID>
+      <E_MDP>${mdp}</E_MDP>
+      <E_NUMREL>${numrel}</E_NUMREL>
+      <E_NOM>${nom}</E_NOM>
+      <E_PRENOM>${prenom}</E_PRENOM>
+      <E_SEXE>${sexe}</E_SEXE>
+      <E_DATE_NAI>${date_nai}</E_DATE_NAI>
+      <E_CNIL_WEB>O</E_CNIL_WEB>
+      <E_CMPCOD>000000</E_CMPCOD>
+      <E_CMPDATE>01/01/1900</E_CMPDATE>
+      <E_ID_ACT_EXT>TEST_ACT</E_ID_ACT_EXT>
+      <E_ID_CMP_EXT>TEST_CMP</E_ID_CMP_EXT>
+    </STCHRONO_V2>
+  </soap:Body>
+</soap:Envelope>`;
+
+            console.log('SOAP Request:', soapEnvelope);
+
+            try {
+                const response = await fetch('http://webservicesffa.athle.fr/St_Chrono/STCHRONO.asmx', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/xml; charset=utf-8',
+                        'SOAPAction': 'http://www.athle.fr/STCHRONO_V2'
+                    },
+                    body: soapEnvelope
+                });
+
+                console.log('Response Status:', response.status);
+
+                const responseText = await response.text();
+                console.log('Response Text:', responseText);
+
+                // Extraire le résultat du SOAP
+                const resultMatch = responseText.match(/<STCHRONO_V2Result>([^<]+)<\/STCHRONO_V2Result>/);
+
+                if (!resultMatch) {
+                    // Erreur SOAP
+                    const errorMatch = responseText.match(/<faultstring>([^<]+)<\/faultstring>/);
+                    if (errorMatch) {
+                        resultDiv.innerHTML = `
+                            <div class="error">
+                                <h3>❌ Erreur SOAP</h3>
+                                <p><strong>Message:</strong> ${errorMatch[1]}</p>
+                                <details>
+                                    <summary>Voir la réponse complète</summary>
+                                    <pre>${responseText}</pre>
+                                </details>
+                            </div>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="error">
+                                <h3>❌ Réponse invalide</h3>
+                                <p>Impossible de parser la réponse FFA</p>
+                                <pre>${responseText}</pre>
+                            </div>
+                        `;
+                    }
+                    return;
+                }
+
+                const csvResult = resultMatch[1];
+                console.log('CSV Result:', csvResult);
+
+                // Parser le CSV
+                const fields = csvResult.split(',');
+                const parsed = {
+                    infoflg: fields[0],
+                    relflg: fields[1],
+                    mutflg: fields[2],
+                    ppsflg: fields[3],
+                    cmpcod: fields[4],
+                    id_act_ext: fields[5],
+                    id_cmp_ext: fields[6],
+                    numrel: fields[7],
+                    nom: fields[8],
+                    prenom: fields[9],
+                    sexe: fields[10],
+                    date_nai: fields[11],
+                    natcod: fields[12],
+                    relcod: fields[13],
+                    dfinrel: fields[14],
+                    catcod: fields[15],
+                    club_num: fields[16],
+                    club_abr: fields[17],
+                    club_nom: fields[18],
+                    msg_retour: fields[27] || 'OK'
+                };
+
+                console.log('Parsed Response:', parsed);
+
+                // Analyser le résultat
+                const isSuccess = parsed.infoflg === 'O' || parsed.msg_retour === 'OK';
+
+                let html = '';
+                if (isSuccess) {
+                    html = `
+                        <div class="success">
+                            <h3>✅ Connexion FFA réussie !</h3>
+                            ${generateBadges(parsed)}
+                            ${generateDetails(parsed)}
+                        </div>
+                    `;
+                } else {
+                    html = `
+                        <div class="error">
+                            <h3>❌ Vérification échouée</h3>
+                            ${generateBadges(parsed)}
+                            <p><strong>Message:</strong> ${parsed.msg_retour}</p>
+                            ${generateDetails(parsed)}
+                        </div>
+                    `;
+                }
+
+                resultDiv.innerHTML = html;
+
+            } catch (error) {
+                console.error('Exception:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Erreur de connexion</h3>
+                        <p><strong>Message:</strong> ${error.message}</p>
+                        <p>⚠️ <strong>Note:</strong> Le webservice FFA utilise HTTP (pas HTTPS). Vérifiez que votre navigateur autorise les requêtes HTTP.</p>
+                        <details>
+                            <summary>Détails de l'erreur</summary>
+                            <pre>${error.stack}</pre>
+                        </details>
+                    </div>
+                `;
+            }
+        }
+
+        function generateBadges(parsed) {
+            return `
+                <div>
+                    ${parsed.infoflg === 'O' ? '<span class="badge badge-success">✓ Info exacte</span>' : '<span class="badge badge-danger">✗ Info incorrecte</span>'}
+                    ${parsed.relflg === 'O' ? '<span class="badge badge-success">✓ Relation valide</span>' : '<span class="badge badge-warning">⚠ Relation invalide</span>'}
+                    ${parsed.mutflg === 'O' ? '<span class="badge badge-warning">⚠ Muté</span>' : '<span class="badge badge-info">Non muté</span>'}
+                    ${parsed.ppsflg === 'O' ? '<span class="badge badge-warning">⚠ PPS requis</span>' : '<span class="badge badge-info">PPS non requis</span>'}
+                </div>
+            `;
+        }
+
+        function generateDetails(parsed) {
+            return `
+                <table style="width: 100%; margin-top: 15px; font-size: 14px;">
+                    <tr><td><strong>N° Relation:</strong></td><td>${parsed.numrel || 'N/A'}</td></tr>
+                    <tr><td><strong>Nom:</strong></td><td>${parsed.nom || 'N/A'}</td></tr>
+                    <tr><td><strong>Prénom:</strong></td><td>${parsed.prenom || 'N/A'}</td></tr>
+                    <tr><td><strong>Date naissance:</strong></td><td>${parsed.date_nai || 'N/A'}</td></tr>
+                    <tr><td><strong>Nationalité:</strong></td><td>${parsed.natcod || 'N/A'}</td></tr>
+                    <tr><td><strong>Type licence:</strong></td><td>${parsed.relcod || 'N/A'}</td></tr>
+                    <tr><td><strong>Date fin:</strong></td><td>${parsed.dfinrel || 'N/A'}</td></tr>
+                    <tr><td><strong>Catégorie:</strong></td><td>${parsed.catcod || 'N/A'}</td></tr>
+                    <tr><td><strong>Club:</strong></td><td>${parsed.club_nom || 'N/A'} (${parsed.club_num || 'N/A'})</td></tr>
+                </table>
+            `;
+        }
+
+        function showDocumentation() {
+            const doc = document.getElementById('documentation');
+            doc.style.display = doc.style.display === 'none' ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>
