@@ -1,44 +1,88 @@
-import { useState } from 'react';
-import { Search, MapPin, Calendar, ArrowRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, X, ArrowRight } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import EventCharacteristicsFilter from '../EventCharacteristicsFilter';
 
 interface HeroProps {
-  onSearch?: (filters: { month: string; sport: string; region: string }) => void;
+  onFiltersChange?: (filters: {
+    searchText: string;
+    selectedSport: string;
+    selectedMonth: string;
+    selectedCity: string;
+    selectedCharacteristics: string[];
+  }) => void;
 }
 
-export default function Hero({ onSearch }: HeroProps) {
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+export default function Hero({ onFiltersChange }: HeroProps) {
+  const [searchText, setSearchText] = useState('');
   const [selectedSport, setSelectedSport] = useState<string>('');
-  const [selectedRegion, setSelectedRegion] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [selectedCharacteristics, setSelectedCharacteristics] = useState<string[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
 
-  const months = [
-    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
-  ];
+  useEffect(() => {
+    loadCities();
+  }, []);
 
-  const sports = [
-    'Running', 'Trail', 'Triathlon', 'Swimrun', 'Cyclisme', 'Marche',
-    'Natation', 'Duathlon', 'Raid', 'Canicross'
-  ];
+  useEffect(() => {
+    if (onFiltersChange) {
+      onFiltersChange({
+        searchText,
+        selectedSport,
+        selectedMonth,
+        selectedCity,
+        selectedCharacteristics,
+      });
+    }
+  }, [searchText, selectedSport, selectedMonth, selectedCity, selectedCharacteristics]);
 
-  const regions = [
-    'Auvergne-Rhône-Alpes', 'Bourgogne-Franche-Comté', 'Bretagne',
-    'Centre-Val de Loire', 'Corse', 'Grand Est', 'Hauts-de-France',
-    'Île-de-France', 'Normandie', 'Nouvelle-Aquitaine', 'Occitanie',
-    'Pays de la Loire', "Provence-Alpes-Côte d'Azur"
-  ];
+  async function loadCities() {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('city')
+        .eq('status', 'published')
+        .gte('start_date', new Date().toISOString());
+
+      if (error) throw error;
+      const uniqueCities = [...new Set(data?.map(e => e.city).filter(Boolean))] as string[];
+      setCities(uniqueCities.sort());
+    } catch (err) {
+      console.error('Error loading cities:', err);
+    }
+  }
+
+  const handleSearch = () => {
+    const eventsSection = document.getElementById('events');
+    if (eventsSection) {
+      eventsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const hasActiveFilters = searchText || selectedSport || selectedMonth || selectedCity || selectedCharacteristics.length > 0;
+
+  const resetFilters = () => {
+    setSearchText('');
+    setSelectedSport('');
+    setSelectedMonth('');
+    setSelectedCity('');
+    setSelectedCharacteristics([]);
+  };
 
   return (
-    <div className="relative min-h-[65vh] overflow-hidden">
+    <div className="relative min-h-[70vh] z-20">
       {/* Background Image with Overlay */}
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat -z-10"
         style={{
           backgroundImage: 'url(https://images.pexels.com/photos/2402777/pexels-photo-2402777.jpeg?auto=compress&cs=tinysrgb&w=1920)',
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/60 to-slate-900/80"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/75 via-slate-900/65 to-slate-900/85"></div>
       </div>
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 flex items-center min-h-[65vh]">
+
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 flex items-center min-h-[70vh] pb-32">
         <div className="w-full">
           <div className="text-center mb-10 space-y-5">
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight leading-tight">
@@ -52,79 +96,108 @@ export default function Hero({ onSearch }: HeroProps) {
             </p>
           </div>
 
-          <div className="max-w-5xl mx-auto">
-            <div className="bg-white/98 backdrop-blur-xl rounded-3xl shadow-2xl p-8 sm:p-10 border border-white/20">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-3">
-                    <Calendar className="w-4 h-4 inline mr-2" />
-                    Mois
-                  </label>
-                  <select
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500 bg-white text-gray-900 transition-all hover:border-gray-300 font-medium"
-                  >
-                    <option value="">Tous les mois</option>
-                    {months.map((month, index) => (
-                      <option key={month} value={index + 1}>{month}</option>
-                    ))}
-                  </select>
-                </div>
+          <div className="max-w-6xl mx-auto">
+            <div className="bg-white/98 backdrop-blur-xl rounded-3xl shadow-2xl p-6 sm:p-8 border border-white/20">
 
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-3">
-                    <Search className="w-4 h-4 inline mr-2" />
-                    Sport
-                  </label>
+              {/* Search bar */}
+              <div className="relative mb-5">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher par nom ou ville..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  className="w-full pl-12 pr-12 py-4 bg-white border-2 border-gray-200 rounded-xl focus:border-slate-900 focus:outline-none text-gray-900 placeholder-gray-400 shadow-sm font-medium"
+                />
+                {searchText && (
+                  <button
+                    onClick={() => setSearchText('')}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Filters */}
+              <div className="space-y-4 mb-6">
+                <div className="flex flex-wrap gap-3">
+                  {/* Characteristics filter */}
+                  <EventCharacteristicsFilter
+                    selectedFilters={selectedCharacteristics}
+                    onChange={setSelectedCharacteristics}
+                  />
+
+                  {/* Sport filter */}
                   <select
                     value={selectedSport}
                     onChange={(e) => setSelectedSport(e.target.value)}
-                    className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500 bg-white text-gray-900 transition-all hover:border-gray-300 font-medium"
+                    className="px-5 py-2.5 bg-white border-2 border-gray-200 rounded-xl focus:border-slate-900 focus:outline-none text-gray-700 font-medium shadow-sm cursor-pointer hover:border-gray-300 transition-colors"
                   >
                     <option value="">Tous les sports</option>
-                    {sports.map((sport) => (
-                      <option key={sport} value={sport}>{sport}</option>
-                    ))}
+                    <option value="running">Course à pied</option>
+                    <option value="trail">Trail</option>
+                    <option value="triathlon">Triathlon</option>
+                    <option value="cycling">Cyclisme</option>
+                    <option value="swimming">Natation</option>
+                    <option value="obstacle">Course d'obstacles</option>
+                    <option value="walking">Marche</option>
+                    <option value="other">Autre</option>
                   </select>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-white mb-3">
-                    <MapPin className="w-4 h-4 inline mr-2" />
-                    Région
-                  </label>
+                  {/* Month filter */}
                   <select
-                    value={selectedRegion}
-                    onChange={(e) => setSelectedRegion(e.target.value)}
-                    className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500 bg-white text-gray-900 transition-all hover:border-gray-300 font-medium"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="px-5 py-2.5 bg-white border-2 border-gray-200 rounded-xl focus:border-slate-900 focus:outline-none text-gray-700 font-medium shadow-sm cursor-pointer hover:border-gray-300 transition-colors"
                   >
-                    <option value="">Toutes les régions</option>
-                    {regions.map((region) => (
-                      <option key={region} value={region}>{region}</option>
+                    <option value="">Tous les mois</option>
+                    <option value="1">Janvier</option>
+                    <option value="2">Février</option>
+                    <option value="3">Mars</option>
+                    <option value="4">Avril</option>
+                    <option value="5">Mai</option>
+                    <option value="6">Juin</option>
+                    <option value="7">Juillet</option>
+                    <option value="8">Août</option>
+                    <option value="9">Septembre</option>
+                    <option value="10">Octobre</option>
+                    <option value="11">Novembre</option>
+                    <option value="12">Décembre</option>
+                  </select>
+
+                  {/* City filter */}
+                  <select
+                    value={selectedCity}
+                    onChange={(e) => setSelectedCity(e.target.value)}
+                    className="px-5 py-2.5 bg-white border-2 border-gray-200 rounded-xl focus:border-slate-900 focus:outline-none text-gray-700 font-medium shadow-sm cursor-pointer hover:border-gray-300 transition-colors"
+                  >
+                    <option value="">Toutes les villes</option>
+                    {cities.map((city) => (
+                      <option key={city} value={city}>{city}</option>
                     ))}
                   </select>
+
+                  {/* Reset filters */}
+                  {hasActiveFilters && (
+                    <button
+                      onClick={resetFilters}
+                      className="px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors font-medium shadow-sm flex items-center space-x-2"
+                    >
+                      <X className="w-4 h-4" />
+                      <span>Réinitialiser</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
+              {/* Search button */}
               <button
-                onClick={() => {
-                  if (onSearch) {
-                    onSearch({
-                      month: selectedMonth,
-                      sport: selectedSport,
-                      region: selectedRegion
-                    });
-                  }
-                  const eventsSection = document.getElementById('events');
-                  if (eventsSection) {
-                    eventsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }
-                }}
+                onClick={handleSearch}
                 className="w-full py-5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl font-bold text-lg flex items-center justify-center space-x-3 group"
               >
                 <Search className="w-5 h-5" />
-                <span>Rechercher mon événement</span>
+                <span>Voir les événements</span>
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>

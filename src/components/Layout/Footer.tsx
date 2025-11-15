@@ -49,7 +49,6 @@ export default function Footer() {
     }
   }
 
-  // Valeurs par défaut si les settings ne sont pas chargés
   const defaultSettings: FooterSettings = {
     company_name: 'Timepulse',
     company_description: 'Plateforme de chronométrage et d\'inscriptions pour événements sportifs depuis 2009.',
@@ -71,8 +70,8 @@ export default function Footer() {
     <footer className="relative bg-gray-900 text-gray-300 overflow-hidden font-light">
       <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 opacity-50"></div>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           <div className="space-y-4">
             <div className="flex items-center">
               <img
@@ -117,8 +116,8 @@ export default function Footer() {
 
           {footerData.links.map((section, index) => (
             <div key={index}>
-              <h3 className="text-white font-semibold mb-6 text-base tracking-wide">{section.section}</h3>
-              <ul className="space-y-3">
+              <h3 className="text-white font-semibold mb-4 text-base tracking-wide">{section.section}</h3>
+              <ul className="space-y-2">
                 {section.items.map((link, linkIndex) => (
                   <li key={linkIndex}>
                     {link.url.startsWith('http') ? (
@@ -147,8 +146,8 @@ export default function Footer() {
           ))}
 
           <div>
-            <h3 className="text-white font-semibold mb-6 text-base tracking-wide">Contact</h3>
-            <ul className="space-y-4">
+            <h3 className="text-white font-semibold mb-4 text-base tracking-wide">Contact</h3>
+            <ul className="space-y-3">
               {footerData.email && (
                 <li>
                   <a href={`mailto:${footerData.email}`} className="flex items-start space-x-3 text-gray-400 hover:text-white transition-colors group font-light text-sm">
@@ -175,15 +174,10 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <p className="text-gray-400 text-sm font-light">
-              {footerData.copyright_text}
-            </p>
-            <p className="text-gray-600 text-xs font-light">
-              v705
-            </p>
-          </div>
+        <div className="border-t border-gray-800 pt-6">
+          <p className="text-gray-400 text-sm font-light text-center">
+            {footerData.copyright_text}
+          </p>
         </div>
       </div>
     </footer>
