@@ -50,7 +50,7 @@ export default function EventCarousel({ filters }: EventCarouselProps) {
     const colors: { [key: string]: string } = {
       'running': 'bg-slate-900',
       'trail': 'bg-emerald-800',
-      'triathlon': 'bg-indigo-900',
+      'triathlon': 'bg-blue-900',      // ← BLEU (pas indigo/violet)
       'cycling': 'bg-amber-700',
       'swimming': 'bg-cyan-800',
       'obstacle': 'bg-red-900',
