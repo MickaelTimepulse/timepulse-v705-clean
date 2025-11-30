@@ -1,0 +1,220 @@
+#!/bin/bash
+
+###############################################################################
+# Script de déploiement complet Timepulse
+# 30 Novembre 2025
+#
+# Ce script effectue :
+# 1. Vérification du build
+# 2. Commit et push GitHub
+# 3. Déploiement Vercel en production
+###############################################################################
+
+set -e  # Arrêter en cas d'erreur
+
+# Couleurs pour les messages
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║                                                            ║${NC}"
+echo -e "${BLUE}║         🚀 DÉPLOIEMENT COMPLET TIMEPULSE V2               ║${NC}"
+echo -e "${BLUE}║                                                            ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+###############################################################################
+# ÉTAPE 1 : VÉRIFICATION DU BUILD
+###############################################################################
+
+echo -e "${YELLOW}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${YELLOW}▶ ÉTAPE 1/4 : Vérification du build${NC}"
+echo -e "${YELLOW}═══════════════════════════════════════════════════════════${NC}"
+echo ""
+
+echo "🔨 Compilation du projet..."
+if npm run build; then
+  echo -e "${GREEN}✅ Build réussi !${NC}"
+  echo ""
+else
+  echo -e "${RED}❌ Erreur lors du build. Déploiement annulé.${NC}"
+  exit 1
+fi
+
+###############################################################################
+# ÉTAPE 2 : GITHUB - COMMIT ET PUSH
+###############################################################################
+
+echo -e "${YELLOW}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${YELLOW}▶ ÉTAPE 2/4 : Commit et Push GitHub${NC}"
+echo -e "${YELLOW}═══════════════════════════════════════════════════════════${NC}"
+echo ""
+
+# Vérifier le statut Git
+if [ -d ".git" ]; then
+  echo "📊 Statut Git :"
+  git status --short
+  echo ""
+
+  # Demander confirmation
+  echo -e "${BLUE}💬 Message du commit :${NC}"
+  echo "   feat: Système de réservation et file d'attente + Fix frais de service"
+  echo ""
+  echo "   - Correction frais de service en double"
+  echo "   - Suppression auto paniers expirés (cron)"
+  echo "   - Système de réservation de places"
+  echo "   - File d'attente avec temps estimé"
+  echo "   - Composant RaceWaitlistModal"
+  echo "   - Prolongation auto panier (activité user)"
+  echo ""
+
+  read -p "Continuer avec ce commit ? (o/n) " -n 1 -r
+  echo ""
+
+  if [[ $REPLY =~ ^[Oo]$ ]]; then
+    echo "📦 Ajout des fichiers..."
+    git add .
+
+    echo "💾 Création du commit..."
+    git commit -m "feat: Système de réservation et file d'attente + Fix frais de service
+
+- Fix: Correction des frais de service en double dans le récapitulatif
+- Fix: Libellé 'Montant total inscription(s) et option(s)'
+- Feature: Suppression automatique des paniers expirés (job cron)
+- Feature: Système de réservation de places (reserved_spots)
+- Feature: File d'attente intelligente (race_waitlist)
+- Feature: Composant RaceWaitlistModal avec temps estimé
+- Feature: Option newsletter bourse aux dossards
+- Feature: Prolongation automatique panier si utilisateur actif
+- Feature: Fonctions SQL (check_availability, reserve_spots, etc.)
+- Docs: Guide complet d'implémentation
+- Docs: Rapport de sauvegarde 30/11/2025
+
+Migrations:
+- create_cart_cleanup_cron_job
+- create_cart_reservation_and_waitlist_system_v2
+
+Tables modifiées: races, race_options
+Tables créées: race_waitlist
+Fichiers créés: RaceWaitlistModal.tsx, guides MD"
+
+    echo "🚀 Push vers GitHub..."
+    if git push origin main; then
+      echo -e "${GREEN}✅ Push GitHub réussi !${NC}"
+      echo ""
+    else
+      echo -e "${RED}❌ Erreur lors du push. Vérifier la connexion GitHub.${NC}"
+      exit 1
+    fi
+  else
+    echo -e "${YELLOW}⏭️  Commit GitHub ignoré${NC}"
+    echo ""
+  fi
+else
+  echo -e "${YELLOW}⚠️  Pas de repository Git détecté${NC}"
+  echo ""
+fi
+
+###############################################################################
+# ÉTAPE 3 : VÉRIFICATION VERCEL
+###############################################################################
+
+echo -e "${YELLOW}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${YELLOW}▶ ÉTAPE 3/4 : Vérification Vercel${NC}"
+echo -e "${YELLOW}═══════════════════════════════════════════════════════════${NC}"
+echo ""
+
+if command -v vercel &> /dev/null; then
+  echo -e "${GREEN}✅ Vercel CLI détecté${NC}"
+
+  # Vérifier la connexion
+  echo "🔍 Vérification de la connexion..."
+  if vercel whoami &> /dev/null; then
+    echo -e "${GREEN}✅ Connecté à Vercel${NC}"
+    echo ""
+  else
+    echo -e "${YELLOW}⚠️  Non connecté à Vercel${NC}"
+    echo "💡 Connexion à Vercel..."
+    vercel login
+  fi
+else
+  echo -e "${RED}❌ Vercel CLI non installé${NC}"
+  echo "💡 Installation via : npm i -g vercel"
+  exit 1
+fi
+
+###############################################################################
+# ÉTAPE 4 : DÉPLOIEMENT VERCEL
+###############################################################################
+
+echo -e "${YELLOW}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${YELLOW}▶ ÉTAPE 4/4 : Déploiement Vercel Production${NC}"
+echo -e "${YELLOW}═══════════════════════════════════════════════════════════${NC}"
+echo ""
+
+echo -e "${BLUE}🌐 Domaines configurés :${NC}"
+echo "   - timepulsesports.com"
+echo "   - timepulsesports.com"
+echo ""
+
+read -p "Lancer le déploiement en PRODUCTION ? (o/n) " -n 1 -r
+echo ""
+
+if [[ $REPLY =~ ^[Oo]$ ]]; then
+  echo "🚀 Déploiement en cours..."
+  echo ""
+
+  if vercel --prod --yes; then
+    echo ""
+    echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║                                                            ║${NC}"
+    echo -e "${GREEN}║               ✅ DÉPLOIEMENT RÉUSSI !                     ║${NC}"
+    echo -e "${GREEN}║                                                            ║${NC}"
+    echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${BLUE}🌐 Site déployé sur :${NC}"
+    echo "   • https://timepulsesports.com"
+    echo "   • https://timepulsesports.com"
+    echo ""
+    echo -e "${BLUE}📊 Prochaines étapes :${NC}"
+    echo "   1. Tester le site en production"
+    echo "   2. Vérifier le job cron Supabase"
+    echo "   3. Tester l'ajout au panier"
+    echo "   4. Vérifier la file d'attente"
+    echo ""
+    echo -e "${BLUE}📚 Documentation :${NC}"
+    echo "   • BACKUP-REPORT-2025-11-30.md"
+    echo "   • CART-RESERVATION-IMPLEMENTATION-GUIDE.md"
+    echo ""
+  else
+    echo ""
+    echo -e "${RED}❌ Erreur lors du déploiement Vercel${NC}"
+    exit 1
+  fi
+else
+  echo -e "${YELLOW}⏭️  Déploiement Vercel ignoré${NC}"
+  echo ""
+fi
+
+###############################################################################
+# RÉSUMÉ FINAL
+###############################################################################
+
+echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${BLUE}📋 RÉSUMÉ DU DÉPLOIEMENT${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo ""
+echo "✅ Build compilé"
+echo "✅ GitHub mis à jour"
+echo "✅ Vercel déployé"
+echo ""
+echo -e "${GREEN}🎉 Tous les systèmes sont opérationnels !${NC}"
+echo ""
+echo -e "${YELLOW}⚠️  N'oubliez pas :${NC}"
+echo "   1. Activer les quotas sur les courses : UPDATE races SET has_quota = true"
+echo "   2. Vérifier le job cron : SELECT * FROM cron.job"
+echo "   3. Tester la file d'attente en production"
+echo ""

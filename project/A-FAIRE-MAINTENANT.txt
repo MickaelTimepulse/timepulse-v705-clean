@@ -1,0 +1,97 @@
+================================================================================
+                    MODULE PARTENAIRES - GUIDE D'INSTALLATION
+================================================================================
+
+NOUVEAU MODULE : Gestion des Partenaires pour les Événements
+
+Ce module permet aux organisateurs de télécharger les logos de leurs partenaires
+avec traitement automatique des images et affichage professionnel sur la page
+publique de l'événement.
+
+================================================================================
+                        ETAPE 1 : APPLIQUER LES MIGRATIONS
+================================================================================
+
+Vous devez appliquer 2 nouvelles migrations SQL à votre base Supabase.
+
+METHODE RECOMMANDEE (Manuelle) :
+
+1. Ouvrez le fichier suivant :
+   supabase/migrations/20251120000001_create_event_partners.sql
+
+2. Copiez TOUT son contenu (Ctrl+A puis Ctrl+C)
+
+3. Allez sur Supabase SQL Editor :
+   https://supabase.com/dashboard/project/fgstscztsighabpzzzix/sql/new
+
+4. Collez le contenu (Ctrl+V)
+
+5. Cliquez sur "Run"
+
+6. Attendez que ça se termine
+
+7. REPETEZ les étapes 1-6 avec le deuxième fichier :
+   supabase/migrations/20251120000002_create_partner_logos_bucket.sql
+
+
+================================================================================
+                        ETAPE 2 : DEPLOYER LE CODE
+================================================================================
+
+Une fois les migrations appliquées :
+
+1. Lancez le script de déploiement :
+   MAJ_DU_SITE.bat
+
+2. Attendez la fin du déploiement (environ 2 minutes)
+
+3. Votre site est à jour !
+
+
+================================================================================
+                        ETAPE 3 : TESTER LE MODULE
+================================================================================
+
+1. COTE ORGANISATEUR :
+
+   a) Connectez-vous en tant qu'organisateur
+   b) Allez dans "Mes événements"
+   c) Cliquez sur un événement
+   d) Vous verrez un nouvel onglet "Partenaires" (icône poignée de main)
+   e) Cliquez dessus
+   f) Testez l'ajout d'un logo partenaire
+
+2. COTE PUBLIC :
+
+   a) Allez sur la page publique d'un événement
+   b) La section partenaires apparaît entre "À propos" et "Lieu"
+   c) Survolez les logos pour voir les effets
+
+
+================================================================================
+                        FONCTIONNALITES
+================================================================================
+
+ORGANISATEUR :
+- Upload logos (PNG, JPEG, JPG)
+- Traitement automatique (200x200px, fond transparent)
+- Nom et lien site web (optionnels)
+- Réorganisation drag & drop
+- Suppression
+
+PUBLIC :
+- Affichage professionnel
+- Effets de survol élégants
+- Liens cliquables
+- Design responsive
+
+
+================================================================================
+                        TEMPS ESTIME : 10 MINUTES
+================================================================================
+
+Migrations : 3 min
+Déploiement : 2 min
+Test : 5 min
+
+================================================================================

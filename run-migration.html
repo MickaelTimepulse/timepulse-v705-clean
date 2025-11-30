@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Run Migration</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h1>Running Migration...</h1>
+  <pre id="output"></pre>
+
+  <script type="module">
+    const { createClient } = supabase;
+
+    const supabaseUrl = 'https://fgstscztsighabpzzzix.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnc3RzY3p0c2lnaGFicHp6eml4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NTc4OTksImV4cCI6MjA3NjAzMzg5OX0.K4khoKUHqRy17pweIHVO0_t9WbA0JoTyroleSY4FHr0';
+
+    const client = createClient(supabaseUrl, supabaseKey);
+
+    const sql = `
+DROP POLICY IF EXISTS "Organizers can update own events" ON events;
+
+CREATE POLICY "Organizers can update own events"
+  ON events FOR UPDATE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM organizers
+      WHERE organizers.id = events.organizer_id
+      AND organizers.user_id = auth.uid()
+    )
+  );
+    `;
+
+    async function runMigration() {
+      try {
+        const { data, error } = await client.rpc('exec_sql', { query: sql });
+
+        if (error) {
+          document.getElementById('output').textContent = 'Error: ' + JSON.stringify(error, null, 2);
+        } else {
+          document.getElementById('output').textContent = 'Success! Migration applied.';
+        }
+      } catch (err) {
+        document.getElementById('output').textContent = 'Exception: ' + err.message;
+      }
+    }
+
+    runMigration();
+  </script>
+</body>
+</html>

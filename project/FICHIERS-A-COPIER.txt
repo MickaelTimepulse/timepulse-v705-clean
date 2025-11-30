@@ -1,0 +1,91 @@
+================================================================================
+📦 FICHIERS À COPIER DANS TON PROJET LOCAL - Caractéristiques d'Événements
+================================================================================
+
+🗄️ MIGRATION SUPABASE (CRITIQUE - À COPIER EN PREMIER)
+------------------------------------------------
+✅ supabase/migrations/20251113213448_20251113230000_create_event_characteristics.sql
+
+
+🎨 COMPOSANTS REACT (À COPIER)
+------------------------------------------------
+✅ src/components/EventCharacteristicsPicker.tsx
+✅ src/components/EventCharacteristicsBadges.tsx
+✅ src/components/EventCharacteristicsFilter.tsx
+
+
+🛠️ SCRIPTS D'APPLICATION (OPTIONNELS)
+------------------------------------------------
+✅ apply-characteristics-migration.sh (Script shell pour appliquer la migration)
+✅ apply-characteristics-migration.html (Interface graphique)
+✅ SYNCHRONISATION-CARACTERISTIQUES.md (Documentation complète)
+
+
+================================================================================
+🚀 ÉTAPES RAPIDES
+================================================================================
+
+1️⃣ COPIE les 4 fichiers ci-dessus dans ton projet local
+
+2️⃣ APPLIQUE la migration (choisis une méthode) :
+
+   MÉTHODE A - Script automatique :
+   --------------------------------
+   chmod +x apply-characteristics-migration.sh
+   ./apply-characteristics-migration.sh
+
+   MÉTHODE B - Supabase Dashboard :
+   --------------------------------
+   - Ouvre : https://app.supabase.com
+   - Va dans : SQL Editor
+   - Copie-colle le contenu de la migration
+   - Exécute
+
+   MÉTHODE C - Interface HTML :
+   --------------------------------
+   npx serve .
+   Ouvre : http://localhost:3000/apply-characteristics-migration.html
+
+3️⃣ TESTE en local :
+   npm run dev
+
+4️⃣ VÉRIFIE dans la console du navigateur (F12)
+
+5️⃣ DÉPLOIE :
+   npm run deploy
+
+
+================================================================================
+🔍 VÉRIFICATION
+================================================================================
+
+Pour vérifier que tout fonctionne, dans la console du navigateur tu devrais voir :
+
+✅ "Loaded characteristics: [...]" avec 16 caractéristiques
+
+
+================================================================================
+💡 ASTUCE POUR L'AVENIR
+================================================================================
+
+Pour éviter ce problème de synchronisation à l'avenir :
+
+1. Après chaque session sur Bolt, demande-moi : "Quels fichiers as-tu modifiés ?"
+2. Je te fournirai la liste + le code complet
+3. Tu copies les fichiers dans ton projet local
+4. Tu commit et push sur GitHub
+5. Tu déploies
+
+
+================================================================================
+📞 BESOIN D'AIDE ?
+================================================================================
+
+Si ça ne fonctionne pas :
+- Vérifie ton fichier .env
+- Vérifie la console du navigateur (F12)
+- Vérifie les logs Supabase Dashboard
+- Relis SYNCHRONISATION-CARACTERISTIQUES.md
+
+
+✨ Bon courage !

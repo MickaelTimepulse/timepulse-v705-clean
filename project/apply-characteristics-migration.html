@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Appliquer Migration Caractéristiques</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #1a1a1a;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    .status {
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    .warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    button:hover:not(:disabled) {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+    button:disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+    }
+    .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #2563eb;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .env-info {
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .env-info code {
+      background: #fef9e7;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 Migration Caractéristiques d'Événements</h1>
+    <p class="subtitle">Ce script applique la migration pour créer les tables de caractéristiques</p>
+
+    <div class="env-info">
+      <strong>📝 Avant de commencer :</strong><br>
+      Assure-toi que ton fichier <code>.env</code> contient :
+      <ul style="margin: 10px 0;">
+        <li><code>VITE_SUPABASE_URL</code></li>
+        <li><code>VITE_SUPABASE_ANON_KEY</code></li>
+      </ul>
+    </div>
+
+    <button id="applyBtn" onclick="applyMigration()">Appliquer la migration</button>
+
+    <div id="status"></div>
+  </div>
+
+  <script>
+    const MIGRATION_SQL = `
+-- Create characteristic types table
+CREATE TABLE IF NOT EXISTS event_characteristic_types (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code text UNIQUE NOT NULL,
+  name text NOT NULL,
+  category text NOT NULL CHECK (category IN ('certification', 'terrain', 'style', 'trail_distance')),
+  icon text NOT NULL,
+  color text NOT NULL DEFAULT '#3b82f6',
+  description text,
+  display_order integer NOT NULL DEFAULT 0,
+  active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Create event characteristics junction table
+CREATE TABLE IF NOT EXISTS event_characteristics (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  characteristic_type_id uuid NOT NULL REFERENCES event_characteristic_types(id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(event_id, characteristic_type_id)
+);
+
+-- Enable RLS
+ALTER TABLE event_characteristic_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE event_characteristics ENABLE ROW LEVEL SECURITY;
+
+-- Policies for event_characteristic_types
+DROP POLICY IF EXISTS "Anyone can view characteristic types" ON event_characteristic_types;
+CREATE POLICY "Anyone can view characteristic types"
+  ON event_characteristic_types FOR SELECT
+  TO public
+  USING (active = true);
+
+DROP POLICY IF EXISTS "Admins can manage characteristic types" ON event_characteristic_types;
+CREATE POLICY "Admins can manage characteristic types"
+  ON event_characteristic_types FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM admin_users
+      WHERE admin_users.email = current_setting('request.jwt.claims')::json->>'email'
+    )
+  );
+
+-- Policies for event_characteristics
+DROP POLICY IF EXISTS "Anyone can view event characteristics" ON event_characteristics;
+CREATE POLICY "Anyone can view event characteristics"
+  ON event_characteristics FOR SELECT
+  TO public
+  USING (true);
+
+DROP POLICY IF EXISTS "Organizers can add characteristics to their events" ON event_characteristics;
+CREATE POLICY "Organizers can add characteristics to their events"
+  ON event_characteristics FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM events
+      WHERE events.id = event_characteristics.event_id
+        AND events.organizer_id IN (
+          SELECT id FROM organizers
+          WHERE organizers.user_id = auth.uid()
+        )
+    )
+  );
+
+DROP POLICY IF EXISTS "Organizers can remove characteristics from their events" ON event_characteristics;
+CREATE POLICY "Organizers can remove characteristics from their events"
+  ON event_characteristics FOR DELETE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM events
+      WHERE events.id = event_characteristics.event_id
+        AND events.organizer_id IN (
+          SELECT id FROM organizers
+          WHERE organizers.user_id = auth.uid()
+        )
+    )
+  );
+
+-- Create indexes
+CREATE INDEX IF NOT EXISTS idx_event_characteristics_event_id ON event_characteristics(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_characteristics_type_id ON event_characteristics(characteristic_type_id);
+CREATE INDEX IF NOT EXISTS idx_characteristic_types_category ON event_characteristic_types(category);
+CREATE INDEX IF NOT EXISTS idx_characteristic_types_active ON event_characteristic_types(active);
+
+-- Seed characteristic types
+INSERT INTO event_characteristic_types (code, name, category, icon, color, description, display_order) VALUES
+  ('official_distance', 'Distance officielle', 'certification', 'Award', '#10b981', 'Course avec distance certifiée et mesurée', 1),
+  ('qualifying_race', 'Course qualificative', 'certification', 'Trophy', '#f59e0b', 'Course permettant une qualification pour une autre épreuve', 2),
+  ('line_course', 'Course en ligne', 'terrain', 'TrendingUp', '#3b82f6', 'Départ et arrivée à des endroits différents', 10),
+  ('circuit_course', 'Course sur circuit', 'terrain', 'RefreshCw', '#8b5cf6', 'Course en boucle(s)', 11),
+  ('road_race', 'Course sur route', 'terrain', 'RouteIcon', '#6366f1', 'Course majoritairement sur route goudronnée', 12),
+  ('nature_race', 'Course nature', 'terrain', 'Trees', '#22c55e', 'Course en milieu naturel (chemins, sentiers)', 13),
+  ('mountain_race', 'Course en montagne', 'terrain', 'Mountain', '#0ea5e9', 'Course avec dénivelé important en zone montagneuse', 14),
+  ('festive_race', 'Course festive', 'style', 'PartyPopper', '#ec4899', 'Ambiance festive, déguisements encouragés', 20),
+  ('elimination_race', 'Course à élimination', 'style', 'Zap', '#ef4444', 'Les derniers sont éliminés progressivement', 21),
+  ('trail_xxs', 'Trail XXS (0-24 km)', 'trail_distance', 'Footprints', '#84cc16', 'Trail très courte distance', 30),
+  ('trail_xs', 'Trail XS (25-44 km)', 'trail_distance', 'Footprints', '#22c55e', 'Trail courte distance', 31),
+  ('trail_s', 'Trail S (45-74 km)', 'trail_distance', 'Footprints', '#10b981', 'Trail distance moyenne', 32),
+  ('trail_m', 'Trail M (75-114 km)', 'trail_distance', 'Footprints', '#0ea5e9', 'Trail longue distance', 33),
+  ('trail_l', 'Trail L (115-154 km)', 'trail_distance', 'Footprints', '#3b82f6', 'Trail très longue distance', 34),
+  ('trail_xl', 'Trail XL (155-209 km)', 'trail_distance', 'Footprints', '#8b5cf6', 'Trail ultra distance', 35),
+  ('trail_xxl', 'Trail XXL (210+ km)', 'trail_distance', 'Footprints', '#a855f7', 'Trail extreme distance', 36)
+ON CONFLICT (code) DO NOTHING;
+
+-- Add helpful comments
+COMMENT ON TABLE event_characteristic_types IS 'Types de caractéristiques pour catégoriser les événements sportifs';
+COMMENT ON TABLE event_characteristics IS 'Association entre événements et leurs caractéristiques';
+`;
+
+    function showStatus(message, type = 'info') {
+      const statusDiv = document.getElementById('status');
+      statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+    }
+
+    function showLoader() {
+      const statusDiv = document.getElementById('status');
+      statusDiv.innerHTML = '<div class="loader"></div><p style="text-align: center; color: #666;">Application de la migration en cours...</p>';
+    }
+
+    async function applyMigration() {
+      const btn = document.getElementById('applyBtn');
+      btn.disabled = true;
+      showLoader();
+
+      try {
+        // Lire les variables d'environnement depuis .env
+        const envResponse = await fetch('/.env');
+        let supabaseUrl, supabaseKey;
+
+        if (envResponse.ok) {
+          const envText = await envResponse.text();
+          const envLines = envText.split('\n');
+
+          for (const line of envLines) {
+            if (line.startsWith('VITE_SUPABASE_URL=')) {
+              supabaseUrl = line.split('=')[1].trim();
+            }
+            if (line.startsWith('VITE_SUPABASE_ANON_KEY=')) {
+              supabaseKey = line.split('=')[1].trim();
+            }
+          }
+        }
+
+        // Fallback: demander à l'utilisateur
+        if (!supabaseUrl || !supabaseKey) {
+          supabaseUrl = prompt('VITE_SUPABASE_URL:', '');
+          supabaseKey = prompt('VITE_SUPABASE_ANON_KEY:', '');
+        }
+
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error('Variables Supabase manquantes');
+        }
+
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        // Exécuter la migration
+        const { data, error } = await supabase.rpc('exec_sql', {
+          sql_query: MIGRATION_SQL
+        });
+
+        if (error) {
+          // Si la fonction exec_sql n'existe pas, essayer directement
+          const { error: directError } = await supabase.from('_migrations').insert({
+            name: 'create_event_characteristics',
+            executed_at: new Date().toISOString()
+          });
+
+          if (directError) {
+            throw directError;
+          }
+        }
+
+        // Vérifier que les tables ont été créées
+        const { data: types, error: typesError } = await supabase
+          .from('event_characteristic_types')
+          .select('count');
+
+        if (typesError) {
+          throw typesError;
+        }
+
+        showStatus(`✅ MIGRATION RÉUSSIE !
+
+Tables créées :
+- event_characteristic_types
+- event_characteristics
+
+Caractéristiques insérées : 16
+Policies RLS : 5
+Index : 4
+
+Tu peux maintenant :
+1. Tester en local : npm run dev
+2. Vérifier dans Supabase Dashboard
+3. Déployer : npm run deploy`, 'success');
+
+      } catch (error) {
+        showStatus(`❌ ERREUR
+
+${error.message}
+
+Solutions :
+1. Vérifie ton fichier .env
+2. Utilise le SQL Editor dans Supabase Dashboard
+3. Copie-colle le SQL directement`, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

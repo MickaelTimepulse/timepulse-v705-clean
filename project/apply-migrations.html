@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Appliquer les migrations Supabase</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      font-size: 16px;
+      opacity: 0.9;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .step {
+      background: #f8f9fa;
+      border-left: 4px solid #667eea;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+
+    .step-number {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 30px;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+
+    .step h3 {
+      display: inline;
+      font-size: 18px;
+      color: #333;
+    }
+
+    .step p {
+      margin-top: 10px;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 15px;
+      margin: 30px 0;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 15px 30px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-decoration: none;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-success {
+      background: #10b981;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #059669;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-secondary {
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+
+    .btn-secondary:hover {
+      background: #667eea;
+      color: white;
+    }
+
+    .alert {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .alert-warning {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      color: #92400e;
+    }
+
+    .alert-info {
+      background: #dbeafe;
+      border-left: 4px solid #3b82f6;
+      color: #1e40af;
+    }
+
+    .alert-success {
+      background: #d1fae5;
+      border-left: 4px solid #10b981;
+      color: #065f46;
+    }
+
+    .code-block {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 20px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      overflow-x: auto;
+      margin: 15px 0;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .stat {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    #status {
+      display: none;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 300px;
+      padding: 15px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      resize: vertical;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 Application des migrations Supabase</h1>
+      <p>Initialisez votre base de données Timepulse en quelques clics</p>
+    </div>
+
+    <div class="content">
+      <div class="alert alert-warning">
+        <strong>⚠️ Important:</strong> Votre base de données de production n'a pas encore de tables.
+        Ce script va créer toutes les tables nécessaires pour faire fonctionner Timepulse.
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value">26</div>
+          <div class="stat-label">Migrations</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">190 KB</div>
+          <div class="stat-label">Taille totale</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">~2 min</div>
+          <div class="stat-label">Temps d'exécution</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">1</span>
+        <h3>Charger le fichier SQL</h3>
+        <p>Cliquez sur le bouton ci-dessous pour charger le fichier combiné de toutes les migrations.</p>
+      </div>
+
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="loadMigrations()">
+          <span>📥</span>
+          Charger les migrations
+        </button>
+      </div>
+
+      <div id="migrationsArea" style="display: none;">
+        <div class="step">
+          <span class="step-number">2</span>
+          <h3>Copier le SQL</h3>
+          <p>Le contenu SQL est affiché ci-dessous. Cliquez sur "Copier" pour le copier dans le presse-papier.</p>
+        </div>
+
+        <textarea id="sqlContent" readonly></textarea>
+
+        <div class="button-group">
+          <button class="btn btn-success" onclick="copySql()">
+            <span>📋</span>
+            Copier le SQL
+          </button>
+        </div>
+
+        <div class="step">
+          <span class="step-number">3</span>
+          <h3>Ouvrir Supabase SQL Editor</h3>
+          <p>Ouvrez l'éditeur SQL de Supabase dans un nouvel onglet.</p>
+        </div>
+
+        <div class="button-group">
+          <a href="https://supabase.com/dashboard/project/fgstscztsighabpzzzix/sql/new"
+             target="_blank"
+             class="btn btn-primary">
+            <span>🔗</span>
+            Ouvrir SQL Editor
+          </a>
+        </div>
+
+        <div class="step">
+          <span class="step-number">4</span>
+          <h3>Coller et exécuter</h3>
+          <p>
+            1. Dans SQL Editor, collez le SQL copié (Ctrl+V ou Cmd+V)<br>
+            2. Cliquez sur le bouton <strong>"Run"</strong><br>
+            3. Attendez 1-2 minutes que toutes les migrations s'exécutent
+          </p>
+        </div>
+
+        <div class="alert alert-info">
+          <strong>💡 Astuce:</strong> Si vous voyez des erreurs "already exists", c'est normal !
+          Cela signifie que certaines tables existent déjà. L'important est que l'exécution se termine.
+        </div>
+
+        <div class="step">
+          <span class="step-number">5</span>
+          <h3>Vérifier</h3>
+          <p>Une fois l'exécution terminée, votre base de données est prête ! Testez votre application.</p>
+        </div>
+      </div>
+
+      <div id="status"></div>
+    </div>
+  </div>
+
+  <script>
+    async function loadMigrations() {
+      const statusDiv = document.getElementById('status');
+      const migrationsArea = document.getElementById('migrationsArea');
+      const sqlContent = document.getElementById('sqlContent');
+
+      statusDiv.style.display = 'block';
+      statusDiv.className = 'alert alert-info';
+      statusDiv.innerHTML = '⏳ Chargement du fichier SQL...';
+
+      try {
+        const response = await fetch('./combined-migrations.sql');
+        if (!response.ok) {
+          throw new Error('Fichier non trouvé');
+        }
+
+        const sql = await response.text();
+        sqlContent.value = sql;
+
+        migrationsArea.style.display = 'block';
+        statusDiv.className = 'alert alert-success';
+        statusDiv.innerHTML = `✅ Fichier chargé avec succès ! (${(sql.length / 1024).toFixed(2)} KB)`;
+
+        // Scroll to migrations area
+        migrationsArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (error) {
+        statusDiv.className = 'alert alert-warning';
+        statusDiv.innerHTML = `❌ Erreur: ${error.message}. Assurez-vous que le fichier combined-migrations.sql est dans le même dossier.`;
+      }
+    }
+
+    function copySql() {
+      const sqlContent = document.getElementById('sqlContent');
+      const statusDiv = document.getElementById('status');
+
+      sqlContent.select();
+      document.execCommand('copy');
+
+      statusDiv.style.display = 'block';
+      statusDiv.className = 'alert alert-success';
+      statusDiv.innerHTML = '✅ SQL copié dans le presse-papier ! Vous pouvez maintenant le coller dans Supabase SQL Editor.';
+
+      // Vibrate if supported
+      if (navigator.vibrate) {
+        navigator.vibrate(200);
+      }
+
+      setTimeout(() => {
+        statusDiv.style.display = 'none';
+      }, 5000);
+    }
+  </script>
+</body>
+</html>

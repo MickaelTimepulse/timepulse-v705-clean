@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fix Athletes RLS Policy</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h1>Fix Athletes RLS Policy</h1>
+  <button id="fixRLS">Apply Fix</button>
+  <pre id="result"></pre>
+
+  <script type="module">
+    const { createClient } = supabase;
+
+    // Read .env file values
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_SERVICE_ROLE_KEY = 'YOUR_SERVICE_ROLE_KEY';
+
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    document.getElementById('fixRLS').addEventListener('click', async () => {
+      const resultEl = document.getElementById('result');
+      resultEl.textContent = 'Applying fix...';
+
+      try {
+        // Drop existing policies
+        const dropPolicies = `
+          DROP POLICY IF EXISTS "Organizers can create athletes" ON athletes;
+          DROP POLICY IF EXISTS "Authenticated users can create athletes" ON athletes;
+          DROP POLICY IF EXISTS "Authenticated users can insert athletes" ON athletes;
+        `;
+
+        const { error: dropError } = await supabaseClient.rpc('exec_sql', {
+          sql: dropPolicies
+        });
+
+        if (dropError) {
+          console.error('Drop error:', dropError);
+        }
+
+        // Create new policy
+        const createPolicy = `
+          CREATE POLICY "Authenticated users can insert athletes"
+            ON athletes FOR INSERT
+            TO authenticated
+            WITH CHECK (true);
+        `;
+
+        const { error: createError } = await supabaseClient.rpc('exec_sql', {
+          sql: createPolicy
+        });
+
+        if (createError) {
+          console.error('Create error:', createError);
+          resultEl.textContent = 'Error: ' + JSON.stringify(createError, null, 2);
+          return;
+        }
+
+        resultEl.textContent = 'Success! RLS policy has been fixed.';
+      } catch (error) {
+        resultEl.textContent = 'Error: ' + error.message;
+      }
+    });
+  </script>
+</body>
+</html>

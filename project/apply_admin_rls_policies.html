@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Apply Admin RLS Policies</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1200px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .status {
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .loading {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      color: #856404;
+    }
+    .success {
+      background: #d4edda;
+      border-left: 4px solid #28a745;
+      color: #155724;
+    }
+    .error {
+      background: #f8d7da;
+      border-left: 4px solid #dc3545;
+      color: #721c24;
+    }
+    pre {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .button {
+      background: #007bff;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .button:hover {
+      background: #0056b3;
+    }
+    .button:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔒 Application des politiques RLS pour les admins</h1>
+
+    <div id="status" class="status loading">
+      <strong>⏳ Préparation...</strong>
+      <p>Connexion à Supabase en cours...</p>
+    </div>
+
+    <button id="applyBtn" class="button" onclick="applyMigration()">Appliquer la migration</button>
+
+    <h3>Détails:</h3>
+    <pre id="output">En attente...</pre>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm';
+
+    const supabaseUrl = 'https://fgstscztsighabpzzzix.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnc3RzY3p0c2lnaGFicHp6eml4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcyODkxMDczNiwiZXhwIjoyMDQ0NDg2NzM2fQ.TuqW-N0nR_EH1SxYtv-33bhAbTbEz_Ro5P9H1bUlb8s';
+
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false }
+    });
+
+    const status = document.getElementById('status');
+    const output = document.getElementById('output');
+    const applyBtn = document.getElementById('applyBtn');
+
+    // Test de connexion
+    async function testConnection() {
+      try {
+        const { data, error } = await supabase.from('admin_users').select('count').limit(1);
+        if (error) throw error;
+
+        status.className = 'status success';
+        status.innerHTML = '<strong>✅ Connexion réussie</strong><p>Vous pouvez maintenant appliquer la migration.</p>';
+        applyBtn.disabled = false;
+        output.textContent = 'Connexion à Supabase établie avec succès.\nCliquez sur le bouton pour appliquer les politiques RLS.';
+      } catch (err) {
+        status.className = 'status error';
+        status.innerHTML = '<strong>❌ Erreur de connexion</strong><p>' + err.message + '</p>';
+        output.textContent = 'Erreur: ' + err.message;
+      }
+    }
+
+    window.applyMigration = async function() {
+      applyBtn.disabled = true;
+      status.className = 'status loading';
+      status.innerHTML = '<strong>⏳ Application en cours...</strong><p>Création des politiques RLS...</p>';
+      output.textContent = 'Application de la migration...\n\n';
+
+      const queries = [
+        {
+          name: 'Fonction is_supabase_admin',
+          sql: `
+CREATE OR REPLACE FUNCTION is_supabase_admin()
+RETURNS boolean AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM admin_users
+    WHERE user_id = auth.uid()
+    AND is_active = true
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+          `
+        },
+        {
+          name: 'Policy: Admins view events',
+          sql: `
+CREATE POLICY "Supabase Auth admins can view all events"
+  ON events FOR SELECT
+  TO authenticated
+  USING (is_supabase_admin());
+          `
+        },
+        {
+          name: 'Policy: Admins update events',
+          sql: `
+CREATE POLICY "Supabase Auth admins can update all events"
+  ON events FOR UPDATE
+  TO authenticated
+  USING (is_supabase_admin());
+          `
+        },
+        {
+          name: 'Policy: Admins insert events',
+          sql: `
+CREATE POLICY "Supabase Auth admins can insert events"
+  ON events FOR INSERT
+  TO authenticated
+  WITH CHECK (is_supabase_admin());
+          `
+        },
+        {
+          name: 'Policy: Admins view event_characteristics',
+          sql: `
+CREATE POLICY "Supabase Auth admins can view all event_characteristics"
+  ON event_characteristics FOR SELECT
+  TO authenticated
+  USING (is_supabase_admin());
+          `
+        },
+        {
+          name: 'Policy: Admins insert event_characteristics',
+          sql: `
+CREATE POLICY "Supabase Auth admins can insert event_characteristics"
+  ON event_characteristics FOR INSERT
+  TO authenticated
+  WITH CHECK (is_supabase_admin());
+          `
+        },
+        {
+          name: 'Policy: Admins delete event_characteristics',
+          sql: `
+CREATE POLICY "Supabase Auth admins can delete event_characteristics"
+  ON event_characteristics FOR DELETE
+  TO authenticated
+  USING (is_supabase_admin());
+          `
+        },
+        {
+          name: 'Policy: Admins view races',
+          sql: `
+CREATE POLICY "Supabase Auth admins can view all races"
+  ON races FOR SELECT
+  TO authenticated
+  USING (is_supabase_admin());
+          `
+        },
+        {
+          name: 'Policy: Admins update races',
+          sql: `
+CREATE POLICY "Supabase Auth admins can update all races"
+  ON races FOR UPDATE
+  TO authenticated
+  USING (is_supabase_admin());
+          `
+        },
+        {
+          name: 'Policy: Admins insert races',
+          sql: `
+CREATE POLICY "Supabase Auth admins can insert races"
+  ON races FOR INSERT
+  TO authenticated
+  WITH CHECK (is_supabase_admin());
+          `
+        }
+      ];
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const query of queries) {
+        try {
+          output.textContent += `\n[${successCount + errorCount + 1}/${queries.length}] Exécution: ${query.name}...`;
+
+          const response = await fetch(`${supabaseUrl}/rest/v1/rpc/exec`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({ query: query.sql })
+          });
+
+          if (response.ok) {
+            output.textContent += ' ✅\n';
+            successCount++;
+          } else {
+            const error = await response.text();
+            // Si l'erreur est "already exists", on considère ça comme un succès
+            if (error.includes('already exists')) {
+              output.textContent += ' ⚠️ (déjà existe)\n';
+              successCount++;
+            } else {
+              output.textContent += ` ❌\nErreur: ${error}\n`;
+              errorCount++;
+            }
+          }
+        } catch (err) {
+          output.textContent += ` ❌\nException: ${err.message}\n`;
+          errorCount++;
+        }
+      }
+
+      if (errorCount === 0) {
+        status.className = 'status success';
+        status.innerHTML = `<strong>✅ Migration réussie !</strong><p>${successCount} politiques RLS créées avec succès.</p><p><strong>Vous pouvez maintenant modifier les événements en tant qu'admin.</strong></p>`;
+      } else {
+        status.className = 'status error';
+        status.innerHTML = `<strong>⚠️ Migration partielle</strong><p>${successCount} réussies, ${errorCount} échouées.</p><p>Certaines politiques existaient peut-être déjà.</p>`;
+      }
+
+      applyBtn.disabled = false;
+    };
+
+    // Test automatique au chargement
+    testConnection();
+  </script>
+</body>
+</html>

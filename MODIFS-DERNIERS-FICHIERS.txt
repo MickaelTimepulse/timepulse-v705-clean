@@ -1,0 +1,151 @@
+═══════════════════════════════════════════════════════════════════════════
+  📋 FICHIERS MODIFIÉS - SESSION DU 15/11/2025 (MISE À JOUR FINALE)
+═══════════════════════════════════════════════════════════════════════════
+
+🎯 OBJECTIF : Suppression des filtres violets + Conservation de l'image de fond
+
+═══════════════════════════════════════════════════════════════════════════
+  ✅ FICHIERS MODIFIÉS
+═══════════════════════════════════════════════════════════════════════════
+
+1. 📁 src/components/Home/Hero.tsx
+   └─ Suppression des overlays et cercles flous violets/bleus
+   └─ Remplacement par un fond dégradé propre (gray-50 → white)
+   └─ Section hero maintenant sans aucun filtre parasite
+
+2. 📁 src/components/Home/EventList.tsx (VERSION FINALE)
+   └─ ✅ CONSERVATION de l'image Pexels (coureurs) avec opacité 15%
+   └─ ✅ CONSERVATION de l'overlay blanc à 85%
+   └─ ❌ SUPPRESSION des 3 cercles flous violets (blue-200, slate-200, gray-200)
+   └─ ✅ Image de fond visible ET propre (sans filtre violet)
+   └─ ✅ Design moderne et sportif
+
+═══════════════════════════════════════════════════════════════════════════
+  📂 CHEMINS COMPLETS À COPIER EN LOCAL
+═══════════════════════════════════════════════════════════════════════════
+
+FICHIER 1 :
+  Source temp : /tmp/cc-agent/58635631/project/src/components/Home/Hero.tsx
+  Destination  : C:\Users\micka\OneDrive\Bureau\NEW SITE\timepulse-v705-clean\src\components\Home\Hero.tsx
+
+FICHIER 2 :
+  Source temp : /tmp/cc-agent/58635631/project/src/components/Home/EventList.tsx
+  Destination  : C:\Users\micka\OneDrive\Bureau\NEW SITE\timepulse-v705-clean\src\components\Home\EventList.tsx
+
+═══════════════════════════════════════════════════════════════════════════
+  🔄 PROCÉDURE DE COPIE
+═══════════════════════════════════════════════════════════════════════════
+
+Méthode 1 - Copie manuelle via l'interface :
+  1. Ouvre les 2 fichiers dans l'éditeur Claude Code
+  2. Copie le contenu complet de chaque fichier
+  3. Ouvre les fichiers correspondants dans ton projet local
+  4. Colle le nouveau contenu
+
+Méthode 2 - Synchronisation automatique :
+  Si ton projet local est configuré avec git et synchronisé avec le projet temp,
+  tu peux simplement :
+  1. git pull
+  2. Vérifier les changements
+  3. Déployer
+
+═══════════════════════════════════════════════════════════════════════════
+  🚀 COMMANDES POUR DÉPLOYER
+═══════════════════════════════════════════════════════════════════════════
+
+1. Après avoir copié les 2 fichiers, lance le build pour vérifier :
+   cd "C:\Users\micka\OneDrive\Bureau\NEW SITE\timepulse-v705-clean"
+   npm run build
+
+2. Si le build est OK, déploie sur Vercel :
+   vercel --prod
+
+   OU utilise ton script :
+   MAJ_DU_SITE.bat
+
+═══════════════════════════════════════════════════════════════════════════
+  ✅ RÉSULTAT ATTENDU
+═══════════════════════════════════════════════════════════════════════════
+
+✓ Plus aucun filtre violet sur la page d'accueil
+✓ Hero section avec fond dégradé propre (gray-50 → white)
+✓ Section "Événements à venir" avec IMAGE PEXELS VISIBLE en arrière-plan
+✓ Image subtile (opacité 15%) sans cercles flous violets
+✓ Design moderne et professionnel sans effets parasites
+✓ Build réussi en 14.14s (vérifié dans le projet temp)
+
+═══════════════════════════════════════════════════════════════════════════
+  📌 NOTES IMPORTANTES
+═══════════════════════════════════════════════════════════════════════════
+
+→ Les modifications concernent uniquement 2 composants visuels
+→ Aucune modification de base de données
+→ Aucune modification de logique métier
+→ Aucune dépendance supplémentaire
+→ Compatible avec la version actuelle en production
+→ Pas de breaking changes
+
+═══════════════════════════════════════════════════════════════════════════
+  📊 STATUT DU BUILD (projet temp)
+═══════════════════════════════════════════════════════════════════════════
+
+✅ Build réussi (14.14s) - VERSION FINALE
+✅ Aucune erreur TypeScript
+✅ Aucun warning
+✅ Bundle size : OK (voir détails ci-dessous)
+✅ Prêt pour déploiement en production
+
+Fichiers générés :
+  - dist/index.html : 0.74 kB
+  - dist/assets/index-LpdtiVxR.css : 102.10 kB
+  - Total chunks : 72 fichiers JS générés avec succès
+
+═══════════════════════════════════════════════════════════════════════════
+  🎨 CHANGEMENTS VISUELS DÉTAILLÉS
+═══════════════════════════════════════════════════════════════════════════
+
+AVANT (Hero.tsx) :
+  ❌ Background image Pexels avec opacity 50%
+  ❌ Overlay blanc 60%
+  ❌ 3 cercles flous (blue-300/30, purple-300/20, indigo-300/25)
+  ❌ Effet violet/bleu parasite
+
+APRÈS (Hero.tsx) :
+  ✅ bg-gradient-to-b from-gray-50 to-white
+  ✅ Design propre et épuré
+  ✅ Aucun overlay ou filtre
+
+AVANT (EventList.tsx) :
+  ❌ Background image Pexels opacity 50%
+  ❌ White overlay 40%
+  ❌ 3 cercles flous (blue-200/40, slate-200/30, gray-200/40) → EFFET VIOLET
+
+APRÈS (EventList.tsx) - VERSION FINALE :
+  ✅ Background image Pexels opacity 15% (plus subtile)
+  ✅ White overlay 85% (plus opaque)
+  ✅ Aucun cercle flou → AUCUN EFFET VIOLET
+  ✅ Image visible en arrière-plan sans parasite
+  ✅ Section élégante et sportive
+
+═══════════════════════════════════════════════════════════════════════════
+  💡 CONSEILS
+═══════════════════════════════════════════════════════════════════════════
+
+→ Teste en local avant de déployer (npm run dev)
+→ Vérifie que les 2 sections s'affichent correctement
+→ Si tu veux modifier les couleurs du dégradé, cherche "from-gray-50 to-white"
+→ Garde une copie de sauvegarde avant de modifier en local
+
+═══════════════════════════════════════════════════════════════════════════
+  📅 PROCHAINES ÉTAPES RECOMMANDÉES
+═══════════════════════════════════════════════════════════════════════════
+
+1. Copier les 2 fichiers dans ton projet local
+2. Tester en local (npm run dev)
+3. Vérifier le build (npm run build)
+4. Déployer sur Vercel (vercel --prod)
+5. Vérifier le site en production
+
+═══════════════════════════════════════════════════════════════════════════
+Fin du rapport - Fichier généré automatiquement par Claude Code
+═══════════════════════════════════════════════════════════════════════════

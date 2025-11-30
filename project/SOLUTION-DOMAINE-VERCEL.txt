@@ -1,0 +1,89 @@
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║     SOLUTION : timepulsev2.com via Vercel/Bolt                ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+✅ BONNE NOUVELLE : Si vous avez acheté le domaine via Bolt/Vercel,
+   la configuration DNS est automatique !
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 QUE FAIRE MAINTENANT
+
+Le message "Configuration non valide" peut apparaître pendant 
+quelques heures après l'achat du domaine.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔧 ÉTAPE 1 : Forcer un redéploiement
+
+Dans votre terminal :
+
+npx vercel --prod --yes --force
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔧 ÉTAPE 2 : Vérifier sur Vercel
+
+1. Allez sur : https://vercel.com/timepulse/project
+2. Cliquez sur "Settings" → "Domains"
+3. Vous devriez voir :
+
+   timepulsev2.com
+   └─ Status : Valid ✓  (ou "Pending" ⏳)
+
+Si le statut est "Pending" :
+   → Attendez 15-30 minutes
+   → La propagation DNS est en cours
+
+Si le statut est "Invalid" ou "Error" :
+   → Cliquez sur "Refresh" à côté du domaine
+   → Ou cliquez sur les 3 points "..." → "Verify"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⏰ DÉLAIS NORMAUX
+
+Après achat d'un domaine via Vercel :
+- Configuration DNS : Immédiate
+- Propagation mondiale : 5 min à 48h (moyenne : 30 min)
+- Certificat SSL : 5-15 minutes
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🧪 TEST
+
+Pendant que ça se propage, testez :
+
+1. Le domaine Vercel (celui qui fonctionne) :
+   https://project-snowy-beta.vercel.app
+
+2. Votre domaine personnalisé :
+   https://timepulsev2.com
+   
+   Si erreur SSL : Normal, attendez quelques minutes
+   Si "Configuration non valide" : Propagation en cours
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ RÉCAPITULATIF
+
+1. Lancez : npx vercel --prod --yes --force
+2. Attendez 15-30 minutes
+3. Testez en navigation privée : https://timepulsev2.com
+4. Si toujours pas bon après 1h, prévenez-moi !
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 EN ATTENDANT
+
+Utilisez project-snowy-beta.vercel.app qui fonctionne parfaitement !
+
+Le domaine timepulsev2.com pointera automatiquement vers le même
+site une fois la propagation terminée.
+
+╔════════════════════════════════════════════════════════════════╗
+║  ACTION : npx vercel --prod --yes --force                     ║
+║  PUIS : Attendez 30 minutes                                    ║
+╚════════════════════════════════════════════════════════════════╝

@@ -1,0 +1,70 @@
+# Dependencies
+node_modules
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+
+# IDE
+.vscode
+.idea
+
+# Documentation
+*.md
+docs/
+
+# Backups
+backups/
+backup_*.sql
+*-backup.*
+*.backup
+
+# Archives (NE PAS DEPLOYER)
+*.tar.gz
+*.zip
+*.rar
+*.7z
+BOLT-V705-SOURCE.tar.gz
+timepulse-deploy.tar.gz
+timepulse-export.tar.gz
+
+# Database
+supabase/migrations/
+*.sql
+
+# Scripts
+*.sh
+*.bat
+*.ps1
+*.mjs
+*.cjs
+apply-*.js
+import-*.js
+deploy-*.js
+combine-*.js
+upload-*.js
+link-*.js
+fix-*.js
+
+# Test files (but NOT index.html)
+test-*.html
+run-migration.html
+fix-*.html
+apply-*.html
+resultats-*.html
+
+# Sensitive files
+AdminUsers.txt
+ADMIN_CREDENTIALS.txt
+
+# Cache directories
+.vite
+.vite-cache
+node_modules/.cache
+node_modules/.vite
+
+# Git
+.git

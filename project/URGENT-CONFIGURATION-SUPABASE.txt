@@ -1,0 +1,144 @@
+================================================================================
+            🚨 CONFIGURATION SUPABASE REQUISE - À FAIRE MAINTENANT
+================================================================================
+
+Vous voyez ces erreurs dans la console :
+- "Could not find the table 'public.event_partners'"
+- "Bucket not found"
+
+C'est NORMAL ! Le code est prêt mais la base de données n'est pas configurée.
+
+================================================================================
+                        ÉTAPE 1 : CRÉER LA TABLE (2 MIN)
+================================================================================
+
+1. Ouvrez ce lien dans votre navigateur :
+   https://supabase.com/dashboard/project/fgstscztsighabpzzzix/sql/new
+
+2. Sur votre ordinateur, ouvrez le fichier :
+   supabase/migrations/20251120000001_create_event_partners.sql
+
+3. Sélectionnez TOUT le contenu (Ctrl+A)
+
+4. Copiez (Ctrl+C)
+
+5. Retournez sur le SQL Editor de Supabase
+
+6. Collez (Ctrl+V)
+
+7. Cliquez sur le bouton "RUN" (en haut à droite)
+
+8. Attendez le message "Success"
+
+✅ La table event_partners est créée !
+
+
+================================================================================
+                    ÉTAPE 2 : CRÉER LE BUCKET STORAGE (2 MIN)
+================================================================================
+
+METHODE RECOMMANDEE (via l'interface) :
+
+1. Ouvrez ce lien :
+   https://supabase.com/dashboard/project/fgstscztsighabpzzzix/storage/buckets
+
+2. Cliquez sur "New bucket" (bouton vert)
+
+3. Remplissez :
+   - Name : event-partner-logos
+   - ☑️ Public bucket (IMPORTANT : cochez !)
+   - File size limit : 5242880
+   - Allowed MIME types : image/png,image/jpeg,image/jpg,image/webp
+
+4. Cliquez sur "Create bucket"
+
+✅ Le bucket est créé !
+
+
+OU via SQL (alternative) :
+
+1. SQL Editor : https://supabase.com/dashboard/project/fgstscztsighabpzzzix/sql/new
+
+2. Ouvrez : supabase/migrations/20251120000002_create_partner_logos_bucket.sql
+
+3. Copiez tout → Collez dans SQL Editor → RUN
+
+
+================================================================================
+                        ÉTAPE 3 : RAFRAÎCHIR LA PAGE
+================================================================================
+
+Une fois les 2 étapes terminées :
+
+1. Retournez sur votre application
+2. Rafraîchissez la page (F5 ou Ctrl+R)
+3. Allez dans un événement
+4. Cliquez sur l'onglet "Partenaires"
+5. Testez l'upload !
+
+
+================================================================================
+                        TEMPS TOTAL : 4 MINUTES
+================================================================================
+
+Étape 1 (table)   : 2 minutes
+Étape 2 (bucket)  : 2 minutes
+-------------------------
+TOTAL             : 4 minutes
+
+
+================================================================================
+                        VÉRIFICATION QUE ÇA MARCHE
+================================================================================
+
+Après avoir fait les 2 étapes, vous devriez voir :
+
+✅ Plus d'erreur "table not found"
+✅ Plus d'erreur "bucket not found"
+✅ La zone d'upload apparaît
+✅ Vous pouvez sélectionner des fichiers
+✅ L'upload fonctionne
+✅ Les logos s'affichent dans la liste
+
+
+================================================================================
+                            AIDE SUPPLÉMENTAIRE
+================================================================================
+
+Si ça ne marche toujours pas après les 2 étapes :
+
+1. Vérifiez que la table existe :
+   - SQL Editor → SELECT * FROM event_partners;
+   - Si erreur = table pas créée
+
+2. Vérifiez que le bucket existe :
+   - Storage → Vous devez voir "event-partner-logos"
+   - Si absent = bucket pas créé
+
+3. Videz le cache :
+   - Ctrl+Shift+R (rafraîchissement forcé)
+
+
+================================================================================
+                        FICHIERS DE MIGRATION
+================================================================================
+
+Les 2 fichiers SQL à appliquer sont dans le dossier :
+supabase/migrations/
+
+1. 20251120000001_create_event_partners.sql      (table)
+2. 20251120000002_create_partner_logos_bucket.sql (bucket)
+
+
+================================================================================
+                            C'EST TOUT !
+================================================================================
+
+Une fois les 2 étapes faites, le module partenaires sera 100% fonctionnel.
+
+Le code est déjà prêt et déployé.
+Il ne manque QUE la configuration Supabase.
+
+Bon courage ! 🚀
+
+================================================================================

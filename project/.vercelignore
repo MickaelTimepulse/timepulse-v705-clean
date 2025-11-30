@@ -1,0 +1,48 @@
+# Dependencies
+node_modules
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+
+# IDE
+.vscode
+.idea
+
+# Documentation
+*.md
+docs/
+
+# Backups
+backups/
+
+# Database
+supabase/migrations/
+*.sql
+
+# Scripts
+*.sh
+*.bat
+
+# Test files (but NOT index.html)
+test-*.html
+run-migration.html
+fix-*.html
+apply-*.html
+resultats-*.html
+
+# Sensitive files
+AdminUsers.txt
+ADMIN_CREDENTIALS.txt
+
+# Cache directories
+.vite
+.vite-cache
+node_modules/.cache
+node_modules/.vite
+
+# Git
+.git

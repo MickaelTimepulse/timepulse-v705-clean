@@ -1,0 +1,217 @@
+# 🚀 Guide de Déploiement Complet - Timepulse V2.8.0
+
+> **Status** : ✅ PRÊT POUR PRODUCTION  
+> **Date** : 30 Novembre 2025  
+> **Build** : ✅ Compilé sans erreur
+
+---
+
+## ⚡ Démarrage Ultra-Rapide (1 commande)
+
+### Sur Windows
+```cmd
+deploy-complete.bat
+```
+
+### Sur Linux/Mac
+```bash
+./deploy-complete.sh
+```
+
+**C'est tout !** Le script s'occupe de :
+1. ✅ Vérifier le build
+2. ✅ Commit + Push GitHub
+3. ✅ Déploiement Vercel Production
+
+---
+
+## 📦 Fichiers créés pour vous
+
+| Fichier | Description |
+|---------|-------------|
+| `deploy-complete.sh` | Script auto déploiement (Linux/Mac) |
+| `deploy-complete.bat` | Script auto déploiement (Windows) |
+| `DEPLOY-NOW.md` | Commandes rapides de déploiement |
+| `BACKUP-REPORT-2025-11-30.md` | Rapport complet des modifications |
+| `SUPABASE-BACKUP-GUIDE.md` | Guide de sauvegarde base de données |
+| `CART-RESERVATION-IMPLEMENTATION-GUIDE.md` | Documentation technique système réservation |
+| `LANCEMENT-DEPLOIEMENT.txt` | Récapitulatif ASCII |
+
+---
+
+## 🎯 Nouveautés de cette version
+
+### ✨ Fonctionnalités ajoutées
+
+1. **Système de réservation de places**
+   - Places réservées lors de l'ajout au panier
+   - Compteurs temps réel (confirmées + réservées)
+   - Protection contre la survente
+
+2. **File d'attente intelligente**
+   - Modal complète avec position dans la file
+   - Calcul temps d'attente estimé
+   - Newsletter bourse aux dossards intégrée
+
+3. **Nettoyage automatique**
+   - Job cron toutes les minutes
+   - Expire les paniers après 10 min
+   - Prolongation automatique si utilisateur actif
+
+### 🐛 Corrections
+
+- ✅ Frais de service n'étaient plus en double
+- ✅ Libellé "Montant total inscription(s) et option(s)"
+
+---
+
+## 🗄️ Base de données Supabase
+
+### Migrations appliquées (2 nouvelles)
+
+```sql
+✅ create_cart_cleanup_cron_job
+✅ create_cart_reservation_and_waitlist_system_v2
+```
+
+### Modifications
+
+**Table `races` :**
+- `reserved_spots` : Places réservées dans paniers
+- `confirmed_entries` : Places payées
+- `has_quota` : Quota activé ou non
+
+**Table `race_options` :**
+- `reserved_quantity` : Quantité réservée
+- `confirmed_quantity` : Quantité confirmée
+
+**Table créée :**
+- `race_waitlist` : File d'attente complète
+
+**Fonctions créées :**
+- `check_race_availability()`
+- `reserve_cart_spots()`
+- `release_cart_spots()`
+- `add_to_waitlist()`
+- `notify_next_in_waitlist()`
+- `calculate_wait_time()`
+
+**Job cron :**
+- `cleanup-expired-carts` : Toutes les minutes
+
+---
+
+## 🎬 Procédure manuelle (si nécessaire)
+
+### 1. Vérifier le build
+```bash
+npm run build
+```
+
+### 2. GitHub
+```bash
+git add .
+git commit -m "feat: Système de réservation et file d'attente + Fix frais de service"
+git push origin main
+```
+
+### 3. Vercel
+```bash
+npm run deploy
+```
+
+---
+
+## ✅ Vérifications post-déploiement
+
+### Site accessible
+```bash
+curl -I https://timepulsesports.com
+```
+
+### Job cron actif
+```sql
+SELECT * FROM cron.job;
+
+SELECT * FROM cron.job_run_details
+ORDER BY start_time DESC
+LIMIT 5;
+```
+
+### Places disponibles
+```sql
+SELECT
+  name,
+  max_participants,
+  confirmed_entries,
+  reserved_spots,
+  (max_participants - confirmed_entries - reserved_spots) as places_disponibles
+FROM races
+WHERE has_quota = true;
+```
+
+---
+
+## ⚙️ Configuration
+
+### Activer les quotas sur une course
+
+```sql
+UPDATE races
+SET
+  has_quota = true,
+  max_participants = 500
+WHERE id = 'uuid-de-la-course';
+```
+
+---
+
+## 📚 Documentation
+
+- **Démarrage rapide** : `DEPLOY-NOW.md`
+- **Rapport complet** : `BACKUP-REPORT-2025-11-30.md`
+- **Sauvegarde Supabase** : `SUPABASE-BACKUP-GUIDE.md`
+- **Guide technique** : `CART-RESERVATION-IMPLEMENTATION-GUIDE.md`
+
+---
+
+## 🆘 Aide
+
+### Le build échoue
+```bash
+rm -rf node_modules dist
+npm install
+npm run build
+```
+
+### Push GitHub échoue
+```bash
+git pull origin main
+# Résoudre conflits si nécessaire
+git push origin main
+```
+
+### Vercel échoue
+```bash
+vercel login
+vercel --prod --yes
+```
+
+---
+
+## 🎉 C'est parti !
+
+**Temps estimé** : 3-5 minutes  
+**URL finale** : https://timepulsesports.com
+
+```bash
+# Windows
+deploy-complete.bat
+
+# Linux/Mac
+./deploy-complete.sh
+```
+
+---
+
+**Version** : 2.8.0 | **Build** : ✅ | **Ready** : ✅

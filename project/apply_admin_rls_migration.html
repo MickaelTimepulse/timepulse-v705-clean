@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Apply Admin RLS Migration</title>
+</head>
+<body>
+  <h1>Applying Admin RLS Migration...</h1>
+  <pre id="output">Loading...</pre>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm';
+
+    const supabaseUrl = 'https://fgstscztsighabpzzzix.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnc3RzY3p0c2lnaGFicHp6eml4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcyODkxMDczNiwiZXhwIjoyMDQ0NDg2NzM2fQ.TuqW-N0nR_EH1SxYtv-33bhAbTbEz_Ro5P9H1bUlb8s';
+
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false }
+    });
+
+    const output = document.getElementById('output');
+
+    async function applyMigration() {
+      try {
+        const migration = `
+-- Helper function to check if current Supabase Auth user is an admin
+CREATE OR REPLACE FUNCTION is_supabase_admin()
+RETURNS boolean AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM admin_users
+    WHERE user_id = auth.uid()
+    AND is_active = true
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Events: Admin policies
+CREATE POLICY "Supabase Auth admins can view all events"
+  ON events FOR SELECT
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can update all events"
+  ON events FOR UPDATE
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can delete all events"
+  ON events FOR DELETE
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can insert events"
+  ON events FOR INSERT
+  TO authenticated
+  WITH CHECK (is_supabase_admin());
+
+-- Races: Admin policies
+CREATE POLICY "Supabase Auth admins can view all races"
+  ON races FOR SELECT
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can update all races"
+  ON races FOR UPDATE
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can delete all races"
+  ON races FOR DELETE
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can insert races"
+  ON races FOR INSERT
+  TO authenticated
+  WITH CHECK (is_supabase_admin());
+
+-- Event Characteristics: Admin policies
+CREATE POLICY "Supabase Auth admins can view all event_characteristics"
+  ON event_characteristics FOR SELECT
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can insert event_characteristics"
+  ON event_characteristics FOR INSERT
+  TO authenticated
+  WITH CHECK (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can delete event_characteristics"
+  ON event_characteristics FOR DELETE
+  TO authenticated
+  USING (is_supabase_admin());
+
+-- Race Pricing: Admin policies
+CREATE POLICY "Supabase Auth admins can view all race_pricing"
+  ON race_pricing FOR SELECT
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can update all race_pricing"
+  ON race_pricing FOR UPDATE
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can insert race_pricing"
+  ON race_pricing FOR INSERT
+  TO authenticated
+  WITH CHECK (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can delete race_pricing"
+  ON race_pricing FOR DELETE
+  TO authenticated
+  USING (is_supabase_admin());
+
+-- Race Options: Admin policies
+CREATE POLICY "Supabase Auth admins can view all race_options"
+  ON race_options FOR SELECT
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can update all race_options"
+  ON race_options FOR UPDATE
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can insert race_options"
+  ON race_options FOR INSERT
+  TO authenticated
+  WITH CHECK (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can delete race_options"
+  ON race_options FOR DELETE
+  TO authenticated
+  USING (is_supabase_admin());
+
+-- Invitations: Admin policies
+CREATE POLICY "Supabase Auth admins can view all invitations"
+  ON invitations FOR SELECT
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can update all invitations"
+  ON invitations FOR UPDATE
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can insert invitations"
+  ON invitations FOR INSERT
+  TO authenticated
+  WITH CHECK (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can delete invitations"
+  ON invitations FOR DELETE
+  TO authenticated
+  USING (is_supabase_admin());
+
+-- Promo Codes: Admin policies
+CREATE POLICY "Supabase Auth admins can view all promo_codes"
+  ON promo_codes FOR SELECT
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can update all promo_codes"
+  ON promo_codes FOR UPDATE
+  TO authenticated
+  USING (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can insert promo_codes"
+  ON promo_codes FOR INSERT
+  TO authenticated
+  WITH CHECK (is_supabase_admin());
+
+CREATE POLICY "Supabase Auth admins can delete promo_codes"
+  ON promo_codes FOR DELETE
+  TO authenticated
+  USING (is_supabase_admin());
+        `;
+
+        output.textContent = 'Applying migration...\n';
+        
+        const { data, error } = await supabase.rpc('exec_sql', { sql: migration });
+        
+        if (error) {
+          output.textContent += 'Error: ' + JSON.stringify(error, null, 2);
+        } else {
+          output.textContent += 'SUCCESS! Admin RLS policies created.\n';
+          output.textContent += JSON.stringify(data, null, 2);
+        }
+      } catch (err) {
+        output.textContent += 'Exception: ' + err.message;
+      }
+    }
+
+    applyMigration();
+  </script>
+</body>
+</html>

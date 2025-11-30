@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Fix RLS Policy</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover {
+      background: #059669;
+    }
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    pre {
+      background: #1f2937;
+      color: #10b981;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 14px;
+    }
+    .error {
+      color: #ef4444;
+    }
+    .success {
+      color: #10b981;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 Fix RLS Policy for Events Table</h1>
+    <p>Cette page va appliquer une migration pour corriger le problème de RLS sur la table <code>events</code>.</p>
+
+    <button id="runBtn" onclick="runMigration()">Exécuter la Migration</button>
+
+    <h3>Résultat :</h3>
+    <pre id="output">En attente...</pre>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const supabaseUrl = 'https://fgstscztsighabpzzzix.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnc3RzY3p0c2lnaGFicHp6eml4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NTc4OTksImV4cCI6MjA3NjAzMzg5OX0.K4khoKUHqRy17pweIHVO0_t9WbA0JoTyroleSY4FHr0';
+
+    const client = createClient(supabaseUrl, supabaseKey);
+
+    window.runMigration = async function() {
+      const output = document.getElementById('output');
+      const btn = document.getElementById('runBtn');
+
+      btn.disabled = true;
+      output.textContent = 'En cours d\'exécution...';
+
+      try {
+        // First, create the SECURITY DEFINER function
+        const createFunctionSQL = `
+CREATE OR REPLACE FUNCTION user_owns_organizer(organizer_uuid uuid, user_uuid uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM organizers
+    WHERE id = organizer_uuid
+    AND user_id = user_uuid
+  );
+$$;
+        `.trim();
+
+        output.textContent = 'Étape 1/3: Création de la fonction SECURITY DEFINER...\n';
+
+        const { error: funcError } = await client.rpc('exec_sql', {
+          sql_text: createFunctionSQL
+        });
+
+        if (funcError) throw new Error('Function creation failed: ' + JSON.stringify(funcError));
+
+        output.textContent += '✓ Fonction créée\n\nÉtape 2/3: Suppression de l\'ancienne politique...\n';
+
+        // Drop the old policy
+        const dropPolicySQL = `DROP POLICY IF EXISTS "Organizers can update own events" ON events;`;
+
+        const { error: dropError } = await client.rpc('exec_sql', {
+          sql_text: dropPolicySQL
+        });
+
+        if (dropError) throw new Error('Policy drop failed: ' + JSON.stringify(dropError));
+
+        output.textContent += '✓ Ancienne politique supprimée\n\nÉtape 3/3: Création de la nouvelle politique...\n';
+
+        // Create the new policy
+        const createPolicySQL = `
+CREATE POLICY "Organizers can update own events"
+  ON events FOR UPDATE
+  TO authenticated
+  USING (
+    user_owns_organizer(organizer_id, auth.uid())
+  )
+  WITH CHECK (
+    user_owns_organizer(organizer_id, auth.uid())
+  );
+        `.trim();
+
+        const { error: policyError } = await client.rpc('exec_sql', {
+          sql_text: createPolicySQL
+        });
+
+        if (policyError) throw new Error('Policy creation failed: ' + JSON.stringify(policyError));
+
+        output.innerHTML = '<span class="success">✓ Migration terminée avec succès !</span>\n\n' +
+          'La politique RLS a été mise à jour.\n' +
+          'Vous pouvez maintenant mettre à jour vos événements avec des images.';
+
+      } catch (error) {
+        output.innerHTML = '<span class="error">✗ Erreur lors de la migration :</span>\n\n' + error.message;
+        btn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>

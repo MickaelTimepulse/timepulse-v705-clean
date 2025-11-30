@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test FFA - Licence 929636</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #2563eb;
+      margin-bottom: 30px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      padding: 12px 30px;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .result {
+      margin-top: 30px;
+      padding: 20px;
+      background: #f9fafb;
+      border-radius: 4px;
+      border-left: 4px solid #2563eb;
+    }
+    .field {
+      margin: 10px 0;
+      padding: 10px;
+      background: white;
+      border-radius: 4px;
+    }
+    .field-name {
+      font-weight: bold;
+      color: #1f2937;
+      display: inline-block;
+      min-width: 200px;
+    }
+    .field-value {
+      color: #059669;
+      font-family: monospace;
+    }
+    .club-section {
+      margin-top: 20px;
+      padding: 20px;
+      background: #ecfdf5;
+      border-radius: 4px;
+      border: 2px solid #059669;
+    }
+    .club-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #059669;
+      margin-bottom: 15px;
+    }
+    .error {
+      background: #fef2f2;
+      border-left-color: #ef4444;
+      color: #dc2626;
+    }
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🏃 Test API FFA - Vérification de Licence</h1>
+
+    <div class="form-group">
+      <label for="license">Numéro de licence FFA:</label>
+      <input type="text" id="license" value="929636" placeholder="Ex: 929636">
+    </div>
+
+    <div class="form-group">
+      <label for="nom">Nom:</label>
+      <input type="text" id="nom" value="TEST" placeholder="Nom">
+    </div>
+
+    <div class="form-group">
+      <label for="prenom">Prénom:</label>
+      <input type="text" id="prenom" value="TEST" placeholder="Prénom">
+    </div>
+
+    <div class="form-group">
+      <label for="birthyear">Année de naissance:</label>
+      <input type="text" id="birthyear" value="1991" placeholder="Ex: 1991">
+    </div>
+
+    <button id="verifyBtn" onclick="verifyLicense()">Vérifier la licence</button>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://tedoezlcoaidyabhellk.supabase.co';
+
+    async function verifyLicense() {
+      const btn = document.getElementById('verifyBtn');
+      const resultDiv = document.getElementById('result');
+
+      btn.disabled = true;
+      resultDiv.innerHTML = '<div class="loading">⏳ Vérification en cours...</div>';
+
+      try {
+        // Récupérer les identifiants FFA depuis Supabase
+        const credResponse = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_ffa_credentials`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlZG9lemxjb2FpZHlhYmhlbGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyMjQyMjMsImV4cCI6MjA3NjgwMDIyM30.XUb1eXtaROA9QrhuwyuiccLbOJ6FQq2Li66_zBU1twY'
+          }
+        });
+
+        const credentials = await credResponse.json();
+        console.log('Credentials:', credentials);
+
+        if (!credentials.uid || !credentials.password) {
+          throw new Error('Identifiants FFA non configurés');
+        }
+
+        // Appeler l'Edge Function
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/ffa-verify-athlete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            uid: credentials.uid,
+            mdp: credentials.password,
+            numrel: document.getElementById('license').value,
+            nom: document.getElementById('nom').value.toUpperCase(),
+            prenom: document.getElementById('prenom').value.toUpperCase(),
+            sexe: 'M',
+            date_nai: document.getElementById('birthyear').value,
+            cnil_web: 'O',
+            cmpcod: '294206',
+            cmpdate: '01/01/2026'
+          })
+        });
+
+        const result = await response.json();
+        console.log('FFA Response complète:', result);
+
+        displayResult(result);
+
+      } catch (error) {
+        console.error('Erreur:', error);
+        resultDiv.innerHTML = `
+          <div class="result error">
+            <h3>❌ Erreur</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function displayResult(result) {
+      const resultDiv = document.getElementById('result');
+
+      if (!result.connected) {
+        resultDiv.innerHTML = `
+          <div class="result error">
+            <h3>❌ ${result.message}</h3>
+            ${result.details ? `<pre>${JSON.stringify(result.details, null, 2)}</pre>` : ''}
+          </div>
+        `;
+        return;
+      }
+
+      const athlete = result.details.test_athlete;
+      const flags = result.details.flags;
+      const allFields = result.details.all_fields || [];
+
+      let html = `
+        <div class="result">
+          <h3>✅ ${result.message}</h3>
+
+          <div class="club-section">
+            <div class="club-title">🏛️ INFORMATIONS CLUB</div>
+            <div class="field">
+              <span class="field-name">Club (numéro):</span>
+              <span class="field-value">${athlete.club_numero || '(vide)'}</span>
+            </div>
+            <div class="field">
+              <span class="field-name">Club (nom abrégé):</span>
+              <span class="field-value">${athlete.club_abrege || '(vide)'}</span>
+            </div>
+            <div class="field">
+              <span class="field-name">Club (nom complet):</span>
+              <span class="field-value">${athlete.club_complet || '(vide)'}</span>
+            </div>
+            <div class="field">
+              <span class="field-name">🎯 Club (final):</span>
+              <span class="field-value" style="font-size: 18px; font-weight: bold; color: #059669;">
+                ${athlete.club || '(AUCUN CLUB TROUVÉ)'}
+              </span>
+            </div>
+          </div>
+
+          <h4 style="margin-top: 30px;">📋 Tous les champs de l'athlète:</h4>
+
+          <div class="field">
+            <span class="field-name">Numéro de licence:</span>
+            <span class="field-value">${athlete.numrel || '(vide)'}</span>
+          </div>
+
+          <div class="field">
+            <span class="field-name">Nom:</span>
+            <span class="field-value">${athlete.nom || '(vide)'}</span>
+          </div>
+
+          <div class="field">
+            <span class="field-name">Prénom:</span>
+            <span class="field-value">${athlete.prenom || '(vide)'}</span>
+          </div>
+
+          <div class="field">
+            <span class="field-name">Sexe:</span>
+            <span class="field-value">${athlete.sexe || '(vide)'}</span>
+          </div>
+
+          <div class="field">
+            <span class="field-name">Date de naissance:</span>
+            <span class="field-value">${athlete.date_nai || '(vide)'}</span>
+          </div>
+
+          <div class="field">
+            <span class="field-name">Nationalité:</span>
+            <span class="field-value">${athlete.natcod || '(vide)'}</span>
+          </div>
+
+          <div class="field">
+            <span class="field-name">Type de licence:</span>
+            <span class="field-value">${athlete.relcod || '(vide)'}</span>
+          </div>
+
+          <div class="field">
+            <span class="field-name">Date fin validité:</span>
+            <span class="field-value">${athlete.dfinrel || '(vide)'}</span>
+          </div>
+
+          <div class="field">
+            <span class="field-name">Catégorie:</span>
+            <span class="field-value">${athlete.catcod || '(vide)'}</span>
+          </div>
+
+          <div class="field">
+            <span class="field-name">Département:</span>
+            <span class="field-value">${athlete.departement || '(vide)'}</span>
+          </div>
+
+          <div class="field">
+            <span class="field-name">Ligue:</span>
+            <span class="field-value">${athlete.ligue || '(vide)'}</span>
+          </div>
+
+          <h4 style="margin-top: 30px;">🚩 Flags de vérification:</h4>
+
+          <div class="field">
+            <span class="field-name">Informations exactes:</span>
+            <span class="field-value">${flags.info_exact ? '✅ OUI' : '❌ NON'}</span>
+          </div>
+
+          <div class="field">
+            <span class="field-name">Relation valide:</span>
+            <span class="field-value">${flags.relation_valide ? '✅ OUI' : '❌ NON'}</span>
+          </div>
+
+          <div class="field">
+            <span class="field-name">Athlète muté:</span>
+            <span class="field-value">${flags.mute ? '⚠️ OUI' : '✅ NON'}</span>
+          </div>
+
+          <div class="field">
+            <span class="field-name">PPS requis:</span>
+            <span class="field-value">${flags.pps_requis ? '⚠️ OUI' : '✅ NON'}</span>
+          </div>
+
+          <h4 style="margin-top: 30px;">📊 CSV Brut (${allFields.length} champs):</h4>
+          <div class="field" style="background: #1f2937; color: #10b981; padding: 15px; overflow-x: auto;">
+            <pre style="margin: 0; white-space: pre-wrap; word-break: break-all;">${result.details.csv_raw}</pre>
+          </div>
+
+          <details style="margin-top: 20px;">
+            <summary style="cursor: pointer; font-weight: bold; padding: 10px; background: #f3f4f6; border-radius: 4px;">
+              🔍 Voir tous les champs bruts (${allFields.length})
+            </summary>
+            <div style="margin-top: 10px; padding: 15px; background: #1f2937; color: #10b981; border-radius: 4px; overflow-x: auto;">
+              <pre style="margin: 0;">${JSON.stringify(allFields, null, 2)}</pre>
+            </div>
+          </details>
+        </div>
+      `;
+
+      resultDiv.innerHTML = html;
+    }
+
+    // Auto-verify on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('Page chargée, prêt à tester la licence 929636');
+    });
+  </script>
+</body>
+</html>

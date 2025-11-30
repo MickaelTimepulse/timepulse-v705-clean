@@ -1,0 +1,188 @@
+import React, { useState, useEffect } from 'react';
+import { Handshake, ExternalLink } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+
+interface Partner {
+  id: string;
+  event_id: string;
+  name: string | null;
+  logo_url: string;
+  website_url: string | null;
+  display_order: number;
+}
+
+interface EventPartnersSectionProps {
+  eventId: string;
+}
+
+export default function EventPartnersSection({ eventId }: EventPartnersSectionProps) {
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadPartners();
+  }, [eventId]);
+
+  const loadPartners = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('event_partners')
+        .select('*')
+        .eq('event_id', eventId)
+        .order('display_order', { ascending: true });
+
+      if (error) throw error;
+      setPartners(data || []);
+    } catch (err) {
+      console.error('Error loading partners:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return null;
+  }
+
+  if (partners.length === 0) {
+    return null;
+  }
+
+  const PartnerLogo = ({ partner }: { partner: Partner }) => {
+    const logo = (
+      <div className="group relative bg-white rounded-xl p-6 shadow-md hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100 overflow-hidden">
+        {/* Animated gradient background on hover */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-transparent to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+        {/* Subtle shine effect */}
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700">
+          <div className="absolute -inset-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12"></div>
+        </div>
+
+        {/* Logo container */}
+        <div className="relative flex items-center justify-center h-32">
+          <img
+            src={partner.logo_url}
+            alt={partner.name || 'Partenaire'}
+            className="max-w-full max-h-full object-contain filter grayscale-[20%] group-hover:grayscale-0 transition-all duration-500 group-hover:scale-110"
+            style={{
+              filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.05))'
+            }}
+          />
+        </div>
+
+        {/* Partner name if provided */}
+        {partner.name && (
+          <div className="relative mt-4 text-center">
+            <p className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors duration-300">
+              {partner.name}
+            </p>
+          </div>
+        )}
+
+        {/* External link indicator */}
+        {partner.website_url && (
+          <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
+            <div className="bg-blue-500 text-white p-2 rounded-full shadow-lg transform rotate-0 group-hover:rotate-12 transition-transform duration-300">
+              <ExternalLink className="h-4 w-4" />
+            </div>
+          </div>
+        )}
+
+        {/* Animated border on hover */}
+        <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+          <div className="absolute inset-0 rounded-xl border-2 border-transparent bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-border animate-[spin_3s_linear_infinite] opacity-30"></div>
+        </div>
+      </div>
+    );
+
+    if (partner.website_url) {
+      return (
+        <a
+          href={partner.website_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block focus:outline-none focus:ring-4 focus:ring-blue-300 rounded-xl transition-all duration-300"
+          aria-label={`Visiter le site de ${partner.name || 'notre partenaire'}`}
+        >
+          {logo}
+        </a>
+      );
+    }
+
+    return logo;
+  };
+
+  const partnersToDisplay = partners.length > 4 ? [...partners, ...partners] : partners;
+
+  return (
+    <section className="py-16 bg-gradient-to-b from-gray-50 to-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Section Header */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center justify-center p-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl mb-4 shadow-lg">
+            <Handshake className="h-8 w-8 text-white" />
+          </div>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            Nos Partenaires
+          </h2>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Nous remercions nos partenaires pour leur confiance et leur soutien dans l'organisation de cet événement.
+          </p>
+        </div>
+
+        {/* Partners Slider Container */}
+        <div className="relative overflow-hidden">
+          <div className={`flex ${partners.length > 4 ? 'animate-scroll' : 'justify-center gap-6'}`}>
+            {partnersToDisplay.map((partner, index) => (
+              <div key={`${partner.id}-${index}`} className="flex-shrink-0 w-64">
+                <PartnerLogo partner={partner} />
+              </div>
+            ))}
+          </div>
+
+          {/* Gradient overlays for infinite scroll effect */}
+          {partners.length > 4 && (
+            <>
+              <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white via-white/50 to-transparent pointer-events-none"></div>
+              <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white via-white/50 to-transparent pointer-events-none"></div>
+            </>
+          )}
+        </div>
+
+        {/* Decorative element */}
+        <div className="mt-12 flex justify-center">
+          <div className="h-1 w-32 bg-gradient-to-r from-transparent via-blue-500 to-transparent rounded-full"></div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes shimmer {
+          from {
+            transform: translateX(-100%);
+          }
+          to {
+            transform: translateX(100%);
+          }
+        }
+
+        @keyframes scroll {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(calc(-100% / 2));
+          }
+        }
+
+        .animate-scroll {
+          animation: scroll 30s linear infinite;
+        }
+
+        .animate-scroll:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+    </section>
+  );
+}

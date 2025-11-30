@@ -1,0 +1,145 @@
+================================================================================
+                    🧪 TEST DU CACHE SUPABASE - GUIDE RAPIDE
+================================================================================
+
+Pour vérifier si le cache PostgREST est rechargé :
+
+================================================================================
+                        TEST 1 : Via l'API REST (30 secondes)
+================================================================================
+
+1. Ouvrez un nouvel onglet dans votre navigateur
+
+2. Collez cette URL :
+   https://fgstscztsighabpzzzix.supabase.co/rest/v1/event_partners
+
+3. Appuyez sur Entrée
+
+4. Vous devriez voir :
+   
+   ✅ SI ÇA MARCHE :
+   - []  (tableau vide)
+   - OU liste de partenaires si vous en avez déjà
+   
+   ❌ SI ÇA NE MARCHE PAS ENCORE :
+   - {"code":"PGRST205","message":"Could not find the table..."}
+   - 404 Not Found
+
+
+================================================================================
+                        TEST 2 : Via l'application (1 minute)
+================================================================================
+
+1. Retournez sur votre application
+2. Rafraîchissez la page (Ctrl+Shift+R)
+3. Reconnectez-vous en tant qu'organisateur
+4. Ouvrez un événement
+5. Cliquez sur l'onglet "Partenaires"
+
+✅ SI ÇA MARCHE :
+- Vous voyez la zone d'upload
+- Pas d'erreur dans la console
+- Le composant charge correctement
+
+❌ SI ÇA NE MARCHE PAS :
+- Erreur "Could not find the table" dans la console
+- Le composant affiche un spinner qui tourne indéfiniment
+
+
+================================================================================
+                        TEST 3 : Via SQL (immédiat)
+================================================================================
+
+1. Allez sur SQL Editor :
+   https://supabase.com/dashboard/project/fgstscztsighabpzzzix/sql/new
+
+2. Exécutez cette requête :
+   SELECT COUNT(*) FROM event_partners;
+
+3. Résultat attendu :
+   
+   ✅ Vous devriez voir :
+   count
+   -----
+     0
+   
+   (ou un nombre si vous avez déjà des partenaires)
+
+
+================================================================================
+                        ⏱️ TIMING ATTENDU
+================================================================================
+
+Après avoir envoyé les commandes de rechargement :
+
+- 0-30 secondes  : Cache en cours de rechargement
+- 30-60 secondes : Cache devrait être rechargé
+- 60+ secondes   : Si ça ne marche toujours pas, problème plus profond
+
+================================================================================
+                        🔧 SI LE TEST 1 ÉCHOUE
+================================================================================
+
+Si après 60 secondes vous voyez toujours l'erreur 404 :
+
+SOLUTION : Redémarrer PostgREST manuellement
+
+1. Allez sur Settings → API :
+   https://supabase.com/dashboard/project/fgstscztsighabpzzzix/settings/api
+
+2. Cherchez un bouton "Restart" ou "Reload"
+
+3. OU contactez le support Supabase :
+   https://supabase.com/dashboard/support
+
+
+================================================================================
+                        🎯 RÉSULTATS POSSIBLES
+================================================================================
+
+SCÉNARIO A : ✅ TEST 1 RÉUSSI
+→ Le cache est rechargé
+→ Rafraîchissez votre application (F5)
+→ Tout devrait fonctionner !
+
+SCÉNARIO B : ❌ TEST 1 ÉCHOUE (après 60s)
+→ Le cache PostgREST est bloqué
+→ Besoin de redémarrer PostgREST manuellement
+→ OU utiliser un workaround (demandez-moi)
+
+SCÉNARIO C : ✅ TEST 1 RÉUSSI mais ❌ TEST 2 ÉCHOUE
+→ Le cache Supabase est OK
+→ Problème dans le code frontend
+→ Vérifiez la console pour l'erreur exacte
+
+================================================================================
+                        📊 INFORMATIONS TECHNIQUES
+================================================================================
+
+URL API de votre projet :
+https://fgstscztsighabpzzzix.supabase.co
+
+Endpoint event_partners :
+https://fgstscztsighabpzzzix.supabase.co/rest/v1/event_partners
+
+Headers requis pour tester avec Postman/curl :
+- apikey: [votre clé anon]
+- Authorization: Bearer [votre clé anon]
+
+================================================================================
+                        💬 BESOIN D'AIDE ?
+================================================================================
+
+Si les tests échouent après 60 secondes :
+
+1. Prenez une capture d'écran de l'erreur
+2. Notez quel test échoue (1, 2 ou 3)
+3. Demandez-moi de créer un workaround
+
+Je peux créer une solution alternative qui contourne le problème de cache.
+
+================================================================================
+
+Lancez les tests maintenant ! ⏱️
+
+================================================================================

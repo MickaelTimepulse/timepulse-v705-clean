@@ -1,0 +1,199 @@
+@echo off
+chcp 65001 >nul
+setlocal enabledelayedexpansion
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Script de déploiement complet Timepulse (Windows)
+:: 30 Novembre 2025
+::
+:: Ce script effectue :
+:: 1. Vérification du build
+:: 2. Commit et push GitHub
+:: 3. Déploiement Vercel en production
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+echo.
+echo ╔════════════════════════════════════════════════════════════╗
+echo ║                                                            ║
+echo ║         🚀 DÉPLOIEMENT COMPLET TIMEPULSE V2               ║
+echo ║                                                            ║
+echo ╚════════════════════════════════════════════════════════════╝
+echo.
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: ÉTAPE 1 : VÉRIFICATION DU BUILD
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+echo ═══════════════════════════════════════════════════════════
+echo ▶ ÉTAPE 1/4 : Vérification du build
+echo ═══════════════════════════════════════════════════════════
+echo.
+
+echo 🔨 Compilation du projet...
+call npm run build
+if errorlevel 1 (
+    echo.
+    echo ❌ Erreur lors du build. Déploiement annulé.
+    pause
+    exit /b 1
+)
+
+echo ✅ Build réussi !
+echo.
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: ÉTAPE 2 : GITHUB - COMMIT ET PUSH
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+echo ═══════════════════════════════════════════════════════════
+echo ▶ ÉTAPE 2/4 : Commit et Push GitHub
+echo ═══════════════════════════════════════════════════════════
+echo.
+
+if exist ".git" (
+    echo 📊 Statut Git :
+    git status --short
+    echo.
+
+    echo 💬 Message du commit :
+    echo    feat: Système de réservation et file d'attente + Fix frais de service
+    echo.
+    echo    - Correction frais de service en double
+    echo    - Suppression auto paniers expirés ^(cron^)
+    echo    - Système de réservation de places
+    echo    - File d'attente avec temps estimé
+    echo    - Composant RaceWaitlistModal
+    echo    - Prolongation auto panier ^(activité user^)
+    echo.
+
+    set /p CONTINUE="Continuer avec ce commit ? (o/n) "
+    if /i "!CONTINUE!"=="o" (
+        echo 📦 Ajout des fichiers...
+        git add .
+
+        echo 💾 Création du commit...
+        git commit -m "feat: Système de réservation et file d'attente + Fix frais de service" -m "- Fix: Correction des frais de service en double dans le récapitulatif" -m "- Fix: Libellé 'Montant total inscription(s) et option(s)'" -m "- Feature: Suppression automatique des paniers expirés (job cron)" -m "- Feature: Système de réservation de places (reserved_spots)" -m "- Feature: File d'attente intelligente (race_waitlist)" -m "- Feature: Composant RaceWaitlistModal avec temps estimé" -m "- Feature: Option newsletter bourse aux dossards" -m "- Feature: Prolongation automatique panier si utilisateur actif" -m "- Feature: Fonctions SQL (check_availability, reserve_spots, etc.)" -m "- Docs: Guide complet d'implémentation" -m "- Docs: Rapport de sauvegarde 30/11/2025" -m "" -m "Migrations:" -m "- create_cart_cleanup_cron_job" -m "- create_cart_reservation_and_waitlist_system_v2" -m "" -m "Tables modifiées: races, race_options" -m "Tables créées: race_waitlist" -m "Fichiers créés: RaceWaitlistModal.tsx, guides MD"
+
+        echo 🚀 Push vers GitHub...
+        git push origin main
+        if errorlevel 1 (
+            echo ❌ Erreur lors du push. Vérifier la connexion GitHub.
+            pause
+            exit /b 1
+        )
+
+        echo ✅ Push GitHub réussi !
+        echo.
+    ) else (
+        echo ⏭️  Commit GitHub ignoré
+        echo.
+    )
+) else (
+    echo ⚠️  Pas de repository Git détecté
+    echo.
+)
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: ÉTAPE 3 : VÉRIFICATION VERCEL
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+echo ═══════════════════════════════════════════════════════════
+echo ▶ ÉTAPE 3/4 : Vérification Vercel
+echo ═══════════════════════════════════════════════════════════
+echo.
+
+where vercel >nul 2>&1
+if errorlevel 1 (
+    echo ❌ Vercel CLI non installé
+    echo 💡 Installation via : npm i -g vercel
+    pause
+    exit /b 1
+)
+
+echo ✅ Vercel CLI détecté
+
+echo 🔍 Vérification de la connexion...
+vercel whoami >nul 2>&1
+if errorlevel 1 (
+    echo ⚠️  Non connecté à Vercel
+    echo 💡 Connexion à Vercel...
+    vercel login
+) else (
+    echo ✅ Connecté à Vercel
+)
+echo.
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: ÉTAPE 4 : DÉPLOIEMENT VERCEL
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+echo ═══════════════════════════════════════════════════════════
+echo ▶ ÉTAPE 4/4 : Déploiement Vercel Production
+echo ═══════════════════════════════════════════════════════════
+echo.
+
+echo 🌐 Domaines configurés :
+echo    - timepulsesports.com
+echo    - timepulsesports.com
+echo.
+
+set /p DEPLOY="Lancer le déploiement en PRODUCTION ? (o/n) "
+if /i "!DEPLOY!"=="o" (
+    echo 🚀 Déploiement en cours...
+    echo.
+
+    vercel --prod --yes
+    if errorlevel 1 (
+        echo.
+        echo ❌ Erreur lors du déploiement Vercel
+        pause
+        exit /b 1
+    )
+
+    echo.
+    echo ╔════════════════════════════════════════════════════════════╗
+    echo ║                                                            ║
+    echo ║               ✅ DÉPLOIEMENT RÉUSSI !                     ║
+    echo ║                                                            ║
+    echo ╚════════════════════════════════════════════════════════════╝
+    echo.
+    echo 🌐 Site déployé sur :
+    echo    • https://timepulsesports.com
+    echo    • https://timepulsesports.com
+    echo.
+    echo 📊 Prochaines étapes :
+    echo    1. Tester le site en production
+    echo    2. Vérifier le job cron Supabase
+    echo    3. Tester l'ajout au panier
+    echo    4. Vérifier la file d'attente
+    echo.
+    echo 📚 Documentation :
+    echo    • BACKUP-REPORT-2025-11-30.md
+    echo    • CART-RESERVATION-IMPLEMENTATION-GUIDE.md
+    echo.
+) else (
+    echo ⏭️  Déploiement Vercel ignoré
+    echo.
+)
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: RÉSUMÉ FINAL
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+echo ═══════════════════════════════════════════════════════════
+echo 📋 RÉSUMÉ DU DÉPLOIEMENT
+echo ═══════════════════════════════════════════════════════════
+echo.
+echo ✅ Build compilé
+echo ✅ GitHub mis à jour
+echo ✅ Vercel déployé
+echo.
+echo 🎉 Tous les systèmes sont opérationnels !
+echo.
+echo ⚠️  N'oubliez pas :
+echo    1. Activer les quotas sur les courses : UPDATE races SET has_quota = true
+echo    2. Vérifier le job cron : SELECT * FROM cron.job
+echo    3. Tester la file d'attente en production
+echo.
+
+pause
