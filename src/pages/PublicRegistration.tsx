@@ -468,6 +468,21 @@ export default function PublicRegistration() {
             errorCode = 'race_full';
             errorMessage = result.message;
             throw new Error(errorMessage);
+          } else if (result.error === 'registration_not_open') {
+            attemptStatus = 'failed';
+            errorCode = 'registration_not_open';
+            errorMessage = 'Les inscriptions ne sont pas encore ouvertes pour cet événement.';
+            throw new Error(errorMessage);
+          } else if (result.error === 'registration_closed') {
+            attemptStatus = 'failed';
+            errorCode = 'registration_closed';
+            errorMessage = 'Les inscriptions sont fermées pour cet événement.';
+            throw new Error(errorMessage);
+          } else if (result.error === 'registration_not_configured') {
+            attemptStatus = 'failed';
+            errorCode = 'registration_not_configured';
+            errorMessage = 'Les dates d\'inscription ne sont pas configurées. Contactez l\'organisateur.';
+            throw new Error(errorMessage);
           } else {
             attemptStatus = 'failed';
             errorCode = result.error || 'unknown_error';
@@ -517,8 +532,132 @@ export default function PublicRegistration() {
         return;
       }
 
+      // INSCRIPTION RELAIS/ÉQUIPE
+      if (registrationData.is_relay_team && registrationData.members) {
+        console.log('🏃‍♂️ [RELAY] Inscription équipe relais détectée');
+        console.log('🏃‍♂️ [RELAY] Nombre de membres:', registrationData.members.length);
+        console.log('🏃‍♂️ [RELAY] Nom équipe:', registrationData.name);
+
+        try {
+          // Pour chaque membre, créer un athlète et une entrée
+          const entries = [];
+
+          for (const member of registrationData.members) {
+            // Créer/récupérer l'athlète
+            const { data: existingAthlete } = await supabase
+              .from('athletes')
+              .select('id')
+              .eq('email', member.email)
+              .maybeSingle();
+
+            let athleteId;
+
+            if (existingAthlete) {
+              athleteId = existingAthlete.id;
+              // Mettre à jour les infos de l'athlète
+              await supabase
+                .from('athletes')
+                .update({
+                  first_name: member.firstName,
+                  last_name: member.lastName,
+                  phone: member.phone,
+                  gender: member.gender,
+                  birthdate: member.birthDate,
+                  nationality: member.nationality || 'FRA',
+                  license_number: member.licenseId,
+                  license_club: member.licenseClub,
+                  pps_number: member.ppsNumber,
+                  license_type: member.licenseType,
+                })
+                .eq('id', athleteId);
+            } else {
+              // Créer un nouvel athlète
+              const { data: newAthlete, error: athleteError } = await supabase
+                .from('athletes')
+                .insert({
+                  first_name: member.firstName,
+                  last_name: member.lastName,
+                  email: member.email,
+                  phone: member.phone,
+                  gender: member.gender,
+                  birthdate: member.birthDate,
+                  nationality: member.nationality || 'FRA',
+                  license_number: member.licenseId,
+                  license_club: member.licenseClub,
+                  pps_number: member.ppsNumber,
+                  license_type: member.licenseType,
+                })
+                .select()
+                .single();
+
+              if (athleteError) throw athleteError;
+              athleteId = newAthlete.id;
+            }
+
+            // Générer un code de gestion unique
+            const managementCode = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`.toUpperCase();
+
+            // Créer l'entrée
+            const { data: entry, error: entryError } = await supabase
+              .from('entries')
+              .insert({
+                athlete_id: athleteId,
+                race_id: registrationData.race_id,
+                event_id: registrationData.event_id,
+                organizer_id: registrationData.organizer_id,
+                status: 'confirmed',
+                registration_status: 'confirmed',
+                payment_status: 'paid',
+                source: 'online',
+                amount: totalAmountCents / registrationData.members.length,
+                management_code: managementCode,
+                registration_date: new Date().toISOString(),
+              })
+              .select()
+              .single();
+
+            if (entryError) throw entryError;
+
+            entries.push({
+              entry_id: entry.id,
+              athlete_id: athleteId,
+              firstName: member.firstName,
+              lastName: member.lastName,
+              email: member.email,
+            });
+          }
+
+          console.log('✅ [RELAY] Tous les membres inscrits:', entries.length);
+
+          // Envoyer les emails de confirmation
+          try {
+            for (const entry of entries) {
+              console.log('📧 [RELAY] Email pour:', entry.firstName, entry.lastName);
+              await sendConfirmationEmail(entry.entry_id, registrationData);
+            }
+            console.log('✅ [RELAY] Tous les emails envoyés');
+
+            // Envoyer un email récapitulatif au responsable
+            await sendGroupSummaryEmail(entries, registrationData);
+          } catch (emailError) {
+            console.error('❌ [RELAY] Erreur envoi emails:', emailError);
+          }
+
+          setSuccess(true);
+          return;
+        } catch (err: any) {
+          console.error('❌ [RELAY] Erreur inscription relais:', err);
+          throw err;
+        }
+      }
+
       // INSCRIPTION SIMPLE (code existant)
       console.log('👤 [SIMPLE] Inscription simple');
+
+      // Vérifier que athlete_data existe
+      if (!registrationData.athlete_data) {
+        throw new Error('Données d\'inscription invalides. Veuillez réessayer.');
+      }
 
       // Préparer les données de l'athlète
       const athleteData = {
@@ -582,6 +721,21 @@ export default function PublicRegistration() {
           attemptStatus = 'quota_exceeded';
           errorCode = 'race_full';
           errorMessage = 'Cette course est complète. Il ne reste plus de places disponibles.';
+          throw new Error(errorMessage);
+        } else if (result.error === 'registration_not_open') {
+          attemptStatus = 'failed';
+          errorCode = 'registration_not_open';
+          errorMessage = 'Les inscriptions ne sont pas encore ouvertes pour cet événement.';
+          throw new Error(errorMessage);
+        } else if (result.error === 'registration_closed') {
+          attemptStatus = 'failed';
+          errorCode = 'registration_closed';
+          errorMessage = 'Les inscriptions sont fermées pour cet événement.';
+          throw new Error(errorMessage);
+        } else if (result.error === 'registration_not_configured') {
+          attemptStatus = 'failed';
+          errorCode = 'registration_not_configured';
+          errorMessage = 'Les dates d\'inscription ne sont pas configurées. Contactez l\'organisateur.';
           throw new Error(errorMessage);
         } else if (result.error === 'race_not_found') {
           attemptStatus = 'failed';

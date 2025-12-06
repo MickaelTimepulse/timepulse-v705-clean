@@ -19,49 +19,73 @@ export default function StaticPage() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+    let metaDescElement: HTMLMetaElement | null = null;
+
+    async function loadPage(pageSlug: string) {
+      try {
+        setLoading(true);
+        setError(false);
+
+        const { data, error: fetchError } = await supabase
+          .from('static_pages')
+          .select('title, content, meta_title, meta_description')
+          .eq('slug', pageSlug)
+          .eq('is_published', true)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        if (!mounted) return;
+
+        setPage(data);
+
+        if (data.meta_title) {
+          document.title = data.meta_title;
+        } else {
+          document.title = `${data.title} - Timepulse`;
+        }
+
+        if (data.meta_description) {
+          let metaDesc = document.querySelector('meta[name="description"]');
+          if (!metaDesc) {
+            metaDesc = document.createElement('meta');
+            metaDesc.setAttribute('name', 'description');
+            if (mounted) {
+              document.head.appendChild(metaDesc);
+              metaDescElement = metaDesc as HTMLMetaElement;
+            }
+          }
+          metaDesc.setAttribute('content', data.meta_description);
+        }
+      } catch (err) {
+        console.error('Error loading page:', err);
+        if (mounted) {
+          setError(true);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
     if (slug) {
       loadPage(slug);
     }
-  }, [slug]);
 
-  async function loadPage(pageSlug: string) {
-    try {
-      setLoading(true);
-      setError(false);
-
-      const { data, error: fetchError } = await supabase
-        .from('static_pages')
-        .select('title, content, meta_title, meta_description')
-        .eq('slug', pageSlug)
-        .eq('is_published', true)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      setPage(data);
-
-      if (data.meta_title) {
-        document.title = data.meta_title;
-      } else {
-        document.title = `${data.title} - Timepulse`;
-      }
-
-      if (data.meta_description) {
-        let metaDesc = document.querySelector('meta[name="description"]');
-        if (!metaDesc) {
-          metaDesc = document.createElement('meta');
-          metaDesc.setAttribute('name', 'description');
-          document.head.appendChild(metaDesc);
+    return () => {
+      mounted = false;
+      // Nettoyer la meta description si elle a été créée
+      if (metaDescElement && metaDescElement.parentNode === document.head) {
+        try {
+          document.head.removeChild(metaDescElement);
+        } catch (err) {
+          console.error('Error removing meta description:', err);
         }
-        metaDesc.setAttribute('content', data.meta_description);
       }
-    } catch (err) {
-      console.error('Error loading page:', err);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }
+    };
+  }, [slug]);
 
   if (loading) {
     return (

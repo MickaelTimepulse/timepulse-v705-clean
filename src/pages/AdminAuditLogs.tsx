@@ -72,10 +72,24 @@ export default function AdminAuditLogs() {
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
+    link.href = url;
     link.download = `audit-logs-${new Date().toISOString().split('T')[0]}.csv`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
     link.click();
+
+    setTimeout(() => {
+      try {
+        if (link.parentNode === document.body) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('Error cleaning up download link:', err);
+      }
+    }, 100);
   };
 
   const filteredLogs = logs.filter(log => {

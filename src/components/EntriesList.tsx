@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Eye, Trash2, Download, Search, Filter, Edit2, Save, X, Mail, Send } from 'lucide-react';
+import { Eye, Trash2, Download, Search, Filter, Edit2, Save, X, Mail, Send, Plus, Info } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatAthleteName } from '../lib/formatters';
 import { loadCountries, type Country } from '../lib/countries';
@@ -87,6 +87,12 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
   const [detailRaceOptions, setDetailRaceOptions] = useState<RaceOption[]>([]);
   const [detailRegistrationOptions, setDetailRegistrationOptions] = useState<RegistrationOption[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
+  const [showOptionsModal, setShowOptionsModal] = useState(false);
+  const [selectedEntryOptions, setSelectedEntryOptions] = useState<{
+    entry: Entry | null;
+    options: RaceOption[];
+    registrationOptions: RegistrationOption[];
+  }>({ entry: null, options: [], registrationOptions: [] });
 
   useEffect(() => {
     loadEntries();
@@ -250,6 +256,40 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
       `Cordialement,\nL'équipe d'organisation`
     );
     window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+  };
+
+  const handleViewOptions = async (entry: Entry) => {
+    try {
+      // Charger les options de la course
+      const { data: options } = await supabase
+        .from('race_options')
+        .select(`
+          *,
+          race_option_choices (
+            id,
+            label,
+            price_modifier_cents
+          )
+        `)
+        .eq('race_id', entry.race_id)
+        .order('display_order');
+
+      // Charger les options sélectionnées pour cette inscription
+      const { data: regOptions } = await supabase
+        .from('registration_options')
+        .select('*')
+        .eq('registration_id', entry.id);
+
+      setSelectedEntryOptions({
+        entry,
+        options: options || [],
+        registrationOptions: regOptions || [],
+      });
+      setShowOptionsModal(true);
+    } catch (error) {
+      console.error('Error loading options:', error);
+      alert('Erreur lors du chargement des options');
+    }
   };
 
   const handleResendConfirmation = async (entry: Entry) => {
@@ -537,8 +577,21 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
     const a = document.createElement('a');
     a.href = url;
     a.download = `inscriptions-${new Date().toISOString().split('T')[0]}.csv`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
-    window.URL.revokeObjectURL(url);
+
+    // Nettoyage différé pour éviter les erreurs de timing
+    setTimeout(() => {
+      try {
+        if (a.parentNode === document.body) {
+          document.body.removeChild(a);
+        }
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('Error cleaning up download link:', err);
+      }
+    }, 100);
   };
 
   if (loading) {
@@ -797,6 +850,13 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleViewOptions(entry)}
+                          className="text-green-600 hover:text-green-900"
+                          title="Voir les options d'inscription"
+                        >
+                          <Info className="w-5 h-5" />
+                        </button>
                         <button
                           onClick={async () => {
                             setSelectedEntry(entry);
@@ -1369,6 +1429,145 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
               >
                 <Save className="w-5 h-5" />
                 {saving ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Options d'inscription */}
+      {showOptionsModal && selectedEntryOptions.entry && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-900">
+                Options d'inscription
+              </h3>
+              <button
+                onClick={() => setShowOptionsModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Informations de base */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-2">Participant</h4>
+                <p className="text-sm text-gray-700">
+                  {formatAthleteName(
+                    selectedEntryOptions.entry.athletes.first_name,
+                    selectedEntryOptions.entry.athletes.last_name
+                  )}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {selectedEntryOptions.entry.races.name}
+                </p>
+                <p className="text-sm text-gray-600 mt-2">
+                  <strong>Montant payé :</strong>{' '}
+                  {selectedEntryOptions.entry.entry_payments?.[0]?.amount_paid || 0} €
+                </p>
+              </div>
+
+              {/* Options sélectionnées */}
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3">
+                  Options sélectionnées
+                </h4>
+
+                {selectedEntryOptions.registrationOptions.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">
+                    Aucune option sélectionnée pour cette inscription
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedEntryOptions.registrationOptions.map((regOpt) => {
+                      const option = selectedEntryOptions.options.find(
+                        (o) => o.id === regOpt.option_id
+                      );
+                      if (!option) return null;
+
+                      let displayValue = regOpt.value || '';
+
+                      // Si c'est un choix, afficher le label du choix
+                      if (regOpt.choice_id && option.choices) {
+                        const choice = option.choices.find(
+                          (c: any) => c.id === regOpt.choice_id
+                        );
+                        if (choice) {
+                          displayValue = choice.label;
+                        }
+                      }
+
+                      return (
+                        <div
+                          key={regOpt.id}
+                          className="bg-white border border-gray-200 rounded-lg p-4"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {option.label}
+                              </p>
+                              {option.description && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {option.description}
+                                </p>
+                              )}
+                              {displayValue && (
+                                <p className="text-sm text-gray-700 mt-2">
+                                  <strong>Valeur :</strong> {displayValue}
+                                </p>
+                              )}
+                              {regOpt.quantity > 1 && (
+                                <p className="text-sm text-gray-700">
+                                  <strong>Quantité :</strong> {regOpt.quantity}
+                                </p>
+                              )}
+                            </div>
+                            {regOpt.price_paid_cents > 0 && (
+                              <div className="text-right">
+                                <p className="font-semibold text-pink-600">
+                                  {(regOpt.price_paid_cents / 100).toFixed(2)} €
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Total des options */}
+              {selectedEntryOptions.registrationOptions.length > 0 && (
+                <div className="border-t pt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-gray-900">
+                      Total options :
+                    </span>
+                    <span className="text-lg font-bold text-pink-600">
+                      {(
+                        selectedEntryOptions.registrationOptions.reduce(
+                          (sum, opt) => sum + (opt.price_paid_cents || 0),
+                          0
+                        ) / 100
+                      ).toFixed(2)}{' '}
+                      €
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t flex justify-end">
+              <button
+                onClick={() => setShowOptionsModal(false)}
+                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Fermer
               </button>
             </div>
           </div>

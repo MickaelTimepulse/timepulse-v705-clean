@@ -138,21 +138,28 @@ export default function EventDetail() {
     try {
       const { data: settingsData } = await supabase
         .from('bib_exchange_settings')
-        .select('is_enabled')
+        .select('is_enabled, transfer_deadline')
         .eq('event_id', eventId)
         .eq('is_enabled', true)
         .maybeSingle();
 
       if (settingsData) {
-        setBibExchangeEnabled(true);
+        const now = new Date();
+        const deadline = settingsData.transfer_deadline ? new Date(settingsData.transfer_deadline) : null;
 
-        const { count } = await supabase
-          .from('bib_exchange_listings')
-          .select('*', { count: 'exact', head: true })
-          .eq('event_id', eventId)
-          .eq('status', 'available');
+        const isBeforeDeadline = !deadline || now < deadline;
 
-        setBibExchangeListingsCount(count || 0);
+        if (isBeforeDeadline) {
+          setBibExchangeEnabled(true);
+
+          const { count } = await supabase
+            .from('bib_exchange_listings')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_id', eventId)
+            .eq('status', 'available');
+
+          setBibExchangeListingsCount(count || 0);
+        }
       }
     } catch (error) {
       console.error('Error loading bib exchange data:', error);
@@ -206,6 +213,16 @@ export default function EventDetail() {
 
     const closeDate = new Date(event.registration_closes);
     return now >= openDate && now <= closeDate;
+  };
+
+  const isRaceFull = (race: any) => {
+    if (!race.max_participants) return false;
+    const currentCount = registrationCounts[race.id] || 0;
+    return currentCount >= race.max_participants;
+  };
+
+  const canRegisterForRace = (race: any) => {
+    return registrationOpen && !isRaceFull(race);
   };
 
   if (loading) {
@@ -388,7 +405,7 @@ export default function EventDetail() {
           </div>
 
           <div className="lg:col-span-1 space-y-4 order-first lg:order-last">
-            {registrationOpen && races.length > 0 && (
+            {races.length > 0 && (
               <>
                 {races.map((race) => (
                   <div
@@ -470,22 +487,48 @@ export default function EventDetail() {
                           </button>
                         )}
 
-                        {event.public_registration ? (
-                          <Link
-                            to={`/events/${event.id}/register?race=${race.id}`}
-                            className="block w-full bg-white hover:bg-gray-50 text-gray-900 font-bold py-2.5 px-4 rounded-lg text-center transition-all duration-200 shadow-md hover:shadow-lg text-sm"
+                        {isRaceFull(race) ? (
+                          <div
+                            className="block w-full font-bold py-2.5 px-4 rounded-lg text-center text-sm backdrop-blur-md shadow-lg transition-all duration-300"
+                            style={{
+                              background: 'linear-gradient(135deg, #dc262615 0%, #dc262625 100%)',
+                              border: '2px solid #dc2626',
+                              color: 'white',
+                              textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                            }}
                           >
-                            S'inscrire
-                          </Link>
+                            Course complète
+                          </div>
+                        ) : canRegisterForRace(race) ? (
+                          event.public_registration ? (
+                            <Link
+                              to={`/events/${event.id}/register?race=${race.id}`}
+                              className="block w-full bg-white hover:bg-gray-50 text-gray-900 font-bold py-2.5 px-4 rounded-lg text-center transition-all duration-200 shadow-md hover:shadow-lg text-sm"
+                            >
+                              S'inscrire
+                            </Link>
+                          ) : (
+                            <a
+                              href={event.registration_url || '#'}
+                              target={event.registration_url ? "_blank" : "_self"}
+                              rel="noopener noreferrer"
+                              className="block w-full bg-white hover:bg-gray-50 text-gray-900 font-bold py-2.5 px-4 rounded-lg text-center transition-all duration-200 shadow-md hover:shadow-lg text-sm"
+                            >
+                              S'inscrire
+                            </a>
+                          )
                         ) : (
-                          <a
-                            href={event.registration_url || '#'}
-                            target={event.registration_url ? "_blank" : "_self"}
-                            rel="noopener noreferrer"
-                            className="block w-full bg-white hover:bg-gray-50 text-gray-900 font-bold py-2.5 px-4 rounded-lg text-center transition-all duration-200 shadow-md hover:shadow-lg text-sm"
+                          <div
+                            className="block w-full font-bold py-2.5 px-4 rounded-lg text-center text-sm backdrop-blur-md shadow-lg transition-all duration-300"
+                            style={{
+                              background: 'linear-gradient(135deg, #78716c15 0%, #78716c25 100%)',
+                              border: '2px solid #78716c',
+                              color: 'white',
+                              textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                            }}
                           >
-                            S'inscrire
-                          </a>
+                            Inscriptions fermées
+                          </div>
                         )}
 
                         {race.show_public_entries_list && (
@@ -517,20 +560,6 @@ export default function EventDetail() {
                   </div>
                 ))}
               </>
-            )}
-
-            {!registrationOpen && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-yellow-900 mb-2">Inscriptions fermées</h3>
-                <p className="text-yellow-700 text-sm">
-                  Les inscriptions ne sont pas encore ouvertes ou sont désormais closes.
-                </p>
-                {event.registration_open_date && (
-                  <p className="text-yellow-700 text-sm mt-2">
-                    Ouverture prévue le {new Date(event.registration_open_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </p>
-                )}
-              </div>
             )}
           </div>
         </div>

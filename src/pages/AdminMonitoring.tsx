@@ -157,7 +157,7 @@ export default function AdminMonitoring() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Total Tentatives</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total_attempts}</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total_attempts || 0}</p>
                   </div>
                   <div className="p-3 bg-blue-100 rounded-lg">
                     <Activity className="w-6 h-6 text-blue-600" />
@@ -169,8 +169,10 @@ export default function AdminMonitoring() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Inscriptions Réussies</p>
-                    <p className="text-3xl font-bold text-green-600 mt-2">{stats.successful}</p>
-                    <p className="text-xs text-gray-500 mt-1">{stats.success_rate}% de succès</p>
+                    <p className="text-3xl font-bold text-green-600 mt-2">{stats.successful || 0}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {stats.success_rate != null ? `${stats.success_rate}%` : '0%'} de succès
+                    </p>
                   </div>
                   <div className="p-3 bg-green-100 rounded-lg">
                     <TrendingUp className="w-6 h-6 text-green-600" />
@@ -182,8 +184,8 @@ export default function AdminMonitoring() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Rate Limited</p>
-                    <p className="text-3xl font-bold text-orange-600 mt-2">{stats.rate_limited}</p>
-                    <p className="text-xs text-gray-500 mt-1">{stats.quota_exceeded} quotas dépassés</p>
+                    <p className="text-3xl font-bold text-orange-600 mt-2">{stats.rate_limited || 0}</p>
+                    <p className="text-xs text-gray-500 mt-1">{stats.quota_exceeded || 0} quotas dépassés</p>
                   </div>
                   <div className="p-3 bg-orange-100 rounded-lg">
                     <AlertTriangle className="w-6 h-6 text-orange-600" />
@@ -195,8 +197,12 @@ export default function AdminMonitoring() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Temps Réponse (Moy)</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">{stats.avg_response_time_ms}ms</p>
-                    <p className="text-xs text-gray-500 mt-1">P95: {stats.p95_response_time_ms}ms</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-2">
+                      {stats.avg_response_time_ms != null ? `${stats.avg_response_time_ms}ms` : '-'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      P95: {stats.p95_response_time_ms != null ? `${stats.p95_response_time_ms}ms` : '-'}
+                    </p>
                   </div>
                   <div className="p-3 bg-purple-100 rounded-lg">
                     <Clock className="w-6 h-6 text-purple-600" />
@@ -313,26 +319,32 @@ export default function AdminMonitoring() {
                       {new Date(race.start_date).toLocaleDateString('fr-FR')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {race.current_registrations} / {race.max_participants}
+                      {race.current_registrations} / {race.max_participants || '∞'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {race.places_remaining}
+                      {!race.max_participants || race.max_participants === 0
+                        ? <span className="text-green-600">Pas de limite</span>
+                        : race.places_remaining}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <div className="w-24 bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full ${
-                              race.capacity_status === 'full' ? 'bg-red-500' :
-                              race.capacity_status === 'critical' ? 'bg-orange-500' :
-                              race.capacity_status === 'warning' ? 'bg-yellow-500' :
-                              'bg-green-500'
-                            }`}
-                            style={{ width: `${race.fill_percentage}%` }}
-                          ></div>
+                      {!race.max_participants || race.max_participants === 0 ? (
+                        <span className="text-sm text-gray-500">-</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full ${
+                                race.capacity_status === 'full' ? 'bg-red-500' :
+                                race.capacity_status === 'critical' ? 'bg-orange-500' :
+                                race.capacity_status === 'warning' ? 'bg-yellow-500' :
+                                'bg-green-500'
+                              }`}
+                              style={{ width: `${Math.min(race.fill_percentage || 0, 100)}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-medium text-gray-900">{race.fill_percentage}%</span>
                         </div>
-                        <span className="text-sm font-medium text-gray-900">{race.fill_percentage}%</span>
-                      </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(race.capacity_status)}`}>

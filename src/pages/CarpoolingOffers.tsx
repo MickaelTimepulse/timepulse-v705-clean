@@ -24,6 +24,7 @@ interface CarpoolingOffer {
 
 interface Event {
   id: string;
+  slug: string;
   name: string;
   start_date: string;
   location: string;
@@ -85,7 +86,7 @@ export default function CarpoolingOffers() {
 
       const { data: eventData, error: eventError } = await supabase
         .from('events')
-        .select('id, name, start_date, location, full_address, city, postal_code')
+        .select('id, slug, name, start_date, location, full_address, city, postal_code')
         .eq('id', eventId)
         .single();
 
@@ -334,7 +335,7 @@ export default function CarpoolingOffers() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <button
-          onClick={() => navigate(`/events/${eventId}`)}
+          onClick={() => navigate(`/events/${event?.slug || eventId}`)}
           className="mb-6 flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />

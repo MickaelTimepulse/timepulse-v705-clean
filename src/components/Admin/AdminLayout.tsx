@@ -31,7 +31,9 @@ import {
   Layout,
   Video,
   ArrowLeft,
-  ShoppingCart
+  ShoppingCart,
+  Download,
+  Award
 } from 'lucide-react';
 // Force rebuild 2024-11-12
 import { useState, useEffect } from 'react';
@@ -93,6 +95,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
     { icon: ShoppingCart, label: 'Paniers', path: '/admin/carts', section: 'events', module: 'entries', permission: 'view' },
     { icon: Trophy, label: 'Résultats', path: '/admin/results', section: 'events', module: 'results', permission: 'view' },
     { icon: Database, label: 'Résultats Externes', path: '/admin/external-results', section: 'events', module: 'results', permission: 'view' },
+    { icon: Download, label: 'Import Timepulse.fr', path: '/admin/timepulse-import', section: 'events', module: 'entries', permission: 'manage' },
     { icon: UserCog, label: 'Athlètes', path: '/admin/athletes', section: 'events', module: 'entries', permission: 'view' },
 
     // Finance
@@ -105,6 +108,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
     { icon: BookOpen, label: 'Variables', path: '/admin/email-variables', section: 'communication', module: 'email', permission: 'send' },
     { icon: Image, label: 'Assets', path: '/admin/email-assets', section: 'communication', module: 'email', permission: 'view' },
     { icon: LineChart, label: 'Monitoring Emails', path: '/admin/email-monitoring', section: 'communication', module: 'email', permission: 'view' },
+    { icon: Award, label: 'Diplômes', path: '/admin/certificates', section: 'communication', module: 'email', permission: 'view' },
 
     // Contenu du site
     { icon: FileCode, label: 'Pages Services', path: '/admin/services', section: 'website', module: 'pages', permission: 'view' },

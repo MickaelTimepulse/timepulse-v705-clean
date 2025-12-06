@@ -8,7 +8,6 @@ interface HeroProps {
     searchText: string;
     selectedSport: string;
     selectedMonth: string;
-    selectedCity: string;
     selectedCharacteristics: string[];
   }) => void;
 }
@@ -17,13 +16,7 @@ export default function Hero({ onFiltersChange }: HeroProps) {
   const [searchText, setSearchText] = useState('');
   const [selectedSport, setSelectedSport] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
-  const [selectedCity, setSelectedCity] = useState<string>('');
   const [selectedCharacteristics, setSelectedCharacteristics] = useState<string[]>([]);
-  const [cities, setCities] = useState<string[]>([]);
-
-  useEffect(() => {
-    loadCities();
-  }, []);
 
   useEffect(() => {
     if (onFiltersChange) {
@@ -31,27 +24,11 @@ export default function Hero({ onFiltersChange }: HeroProps) {
         searchText,
         selectedSport,
         selectedMonth,
-        selectedCity,
         selectedCharacteristics,
       });
     }
-  }, [searchText, selectedSport, selectedMonth, selectedCity, selectedCharacteristics]);
+  }, [searchText, selectedSport, selectedMonth, selectedCharacteristics]);
 
-  async function loadCities() {
-    try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('city')
-        .eq('status', 'published')
-        .gte('start_date', new Date().toISOString());
-
-      if (error) throw error;
-      const uniqueCities = [...new Set(data?.map(e => e.city).filter(Boolean))] as string[];
-      setCities(uniqueCities.sort());
-    } catch (err) {
-      console.error('Error loading cities:', err);
-    }
-  }
 
   const handleSearch = () => {
     const eventsSection = document.getElementById('events');
@@ -60,13 +37,12 @@ export default function Hero({ onFiltersChange }: HeroProps) {
     }
   };
 
-  const hasActiveFilters = searchText || selectedSport || selectedMonth || selectedCity || selectedCharacteristics.length > 0;
+  const hasActiveFilters = searchText || selectedSport || selectedMonth || selectedCharacteristics.length > 0;
 
   const resetFilters = () => {
     setSearchText('');
     setSelectedSport('');
     setSelectedMonth('');
-    setSelectedCity('');
     setSelectedCharacteristics([]);
   };
 
@@ -85,13 +61,12 @@ export default function Hero({ onFiltersChange }: HeroProps) {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 flex items-center min-h-[70vh] pb-32">
         <div className="w-full">
           <div className="text-center mb-10 space-y-5">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight leading-tight">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-light text-white tracking-tight leading-tight">
               Trouvez votre <span className="relative inline-block">
-                <span className="relative z-10">prochain défi</span>
-                <span className="absolute bottom-2 left-0 w-full h-3 bg-white/20 -skew-y-1 transform"></span>
+                <span className="relative z-10 font-bold tracking-wider bg-gradient-to-r from-white via-orange-50 to-white bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(255,255,255,0.3)]" style={{ fontFamily: "'Inter', 'SF Pro Display', -apple-system, system-ui, sans-serif", letterSpacing: '0.02em' }}>prochain défi</span>
               </span>
             </h1>
-            <p className="text-lg sm:text-xl text-gray-100 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-100 max-w-2xl mx-auto font-light">
               Inscrivez-vous aux événements sportifs partout en France
             </p>
           </div>
@@ -107,7 +82,7 @@ export default function Hero({ onFiltersChange }: HeroProps) {
                   placeholder="Rechercher par nom ou ville..."
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  className="w-full pl-12 pr-12 py-4 bg-white border-2 border-gray-200 rounded-xl focus:border-slate-900 focus:outline-none text-gray-900 placeholder-gray-400 shadow-sm font-medium"
+                  className="w-full pl-12 pr-12 py-4 bg-white border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:outline-none text-gray-900 placeholder-gray-400 shadow-sm font-medium hover:border-blue-400 transition-all"
                 />
                 {searchText && (
                   <button
@@ -119,9 +94,9 @@ export default function Hero({ onFiltersChange }: HeroProps) {
                 )}
               </div>
 
-              {/* Filters */}
-              <div className="space-y-4 mb-6">
-                <div className="flex flex-wrap gap-3">
+              {/* Filters - All aligned on one row */}
+              <div className="mb-5">
+                <div className="flex flex-wrap items-center gap-3">
                   {/* Characteristics filter */}
                   <EventCharacteristicsFilter
                     selectedFilters={selectedCharacteristics}
@@ -132,7 +107,7 @@ export default function Hero({ onFiltersChange }: HeroProps) {
                   <select
                     value={selectedSport}
                     onChange={(e) => setSelectedSport(e.target.value)}
-                    className="px-5 py-2.5 bg-white border-2 border-gray-200 rounded-xl focus:border-slate-900 focus:outline-none text-gray-700 font-medium shadow-sm cursor-pointer hover:border-gray-300 transition-colors"
+                    className="px-4 py-2 bg-white border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:outline-none text-gray-700 font-medium cursor-pointer hover:border-blue-400 transition-all shadow-sm"
                   >
                     <option value="">Tous les sports</option>
                     <option value="running">Course à pied</option>
@@ -149,7 +124,7 @@ export default function Hero({ onFiltersChange }: HeroProps) {
                   <select
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="px-5 py-2.5 bg-white border-2 border-gray-200 rounded-xl focus:border-slate-900 focus:outline-none text-gray-700 font-medium shadow-sm cursor-pointer hover:border-gray-300 transition-colors"
+                    className="px-4 py-2 bg-white border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:outline-none text-gray-700 font-medium cursor-pointer hover:border-blue-400 transition-all shadow-sm"
                   >
                     <option value="">Tous les mois</option>
                     <option value="1">Janvier</option>
@@ -166,23 +141,11 @@ export default function Hero({ onFiltersChange }: HeroProps) {
                     <option value="12">Décembre</option>
                   </select>
 
-                  {/* City filter */}
-                  <select
-                    value={selectedCity}
-                    onChange={(e) => setSelectedCity(e.target.value)}
-                    className="px-5 py-2.5 bg-white border-2 border-gray-200 rounded-xl focus:border-slate-900 focus:outline-none text-gray-700 font-medium shadow-sm cursor-pointer hover:border-gray-300 transition-colors"
-                  >
-                    <option value="">Toutes les villes</option>
-                    {cities.map((city) => (
-                      <option key={city} value={city}>{city}</option>
-                    ))}
-                  </select>
-
                   {/* Reset filters */}
                   {hasActiveFilters && (
                     <button
                       onClick={resetFilters}
-                      className="px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors font-medium shadow-sm flex items-center space-x-2"
+                      className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all font-medium shadow-sm border-2 border-slate-900 flex items-center space-x-2"
                     >
                       <X className="w-4 h-4" />
                       <span>Réinitialiser</span>
@@ -194,11 +157,11 @@ export default function Hero({ onFiltersChange }: HeroProps) {
               {/* Search button */}
               <button
                 onClick={handleSearch}
-                className="w-full py-5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl font-bold text-lg flex items-center justify-center space-x-3 group"
+                className="w-full py-3.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl font-bold text-base flex items-center justify-center space-x-2 group border-2 border-orange-400 hover:border-orange-500"
               >
-                <Search className="w-5 h-5" />
+                <Search className="w-4 h-4" />
                 <span>Voir les événements</span>
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
           </div>

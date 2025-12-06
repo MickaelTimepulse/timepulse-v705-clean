@@ -48,6 +48,7 @@ const AdminLogin = lazy(() => import('./pages/AdminLogin'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminOrganizers = lazy(() => import('./pages/AdminOrganizers'));
 const AdminEvents = lazy(() => import('./pages/AdminEvents'));
+const AdminCreateEvent = lazy(() => import('./pages/AdminCreateEvent'));
 const AdminEntries = lazy(() => import('./pages/AdminEntries'));
 const AdminResults = lazy(() => import('./pages/AdminResults'));
 const AdminAthletes = lazy(() => import('./pages/AdminAthletes'));
@@ -67,6 +68,7 @@ const AdminActivityLogs = lazy(() => import('./pages/AdminActivityLogs'));
 const AdminMonitoring = lazy(() => import('./pages/AdminMonitoring'));
 const AdminDeployment = lazy(() => import('./pages/AdminDeployment'));
 const AdminEmailAssets = lazy(() => import('./pages/AdminEmailAssets'));
+const AdminCertificates = lazy(() => import('./pages/AdminCertificates'));
 const AdminFooterSettings = lazy(() => import('./pages/AdminFooterSettings'));
 const AdminStaticPages = lazy(() => import('./pages/AdminStaticPages'));
 const AdminProjectTracking = lazy(() => import('./pages/AdminProjectTracking'));
@@ -76,6 +78,7 @@ const AdminCarts = lazy(() => import('./pages/AdminCarts'));
 const AdminExternalResults = lazy(() => import('./pages/AdminExternalResults'));
 const AdminExternalResultsDetail = lazy(() => import('./pages/AdminExternalResultsDetail'));
 const AdminExternalResultsImport = lazy(() => import('./pages/AdminExternalResultsImport'));
+const AdminTimepulseImport = lazy(() => import('./pages/AdminTimepulseImport'));
 const OrganizerExternalResults = lazy(() => import('./pages/OrganizerExternalResults'));
 const OrganizerExternalResultsImport = lazy(() => import('./pages/OrganizerExternalResultsImport'));
 const PublicResultsSubmit = lazy(() => import('./pages/PublicResultsSubmit'));
@@ -133,6 +136,7 @@ function App() {
             <Route path="/events/:eventId/register" element={<PublicRegistration />} />
             <Route path="/events/:eventSlug/races/:raceId/entries" element={<RaceEntriesList />} />
             <Route path="/races/:raceId/results" element={<RaceResults />} />
+            <Route path="/resultats/:raceSlug" element={<RaceResults />} />
             <Route path="/events/:eventId/bib-exchange" element={<BibExchange />} />
             <Route path="/events/:eventId/bib-exchange/buy/:listingId" element={<BuyBib />} />
             <Route path="/events/:eventId/carpooling" element={<CarpoolingOffers />} />
@@ -270,6 +274,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AdminEvents />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/events/create"
+              element={
+                <ProtectedRoute>
+                  <AdminCreateEvent />
                 </ProtectedRoute>
               }
             />
@@ -458,6 +470,14 @@ function App() {
               }
             />
             <Route
+              path="/admin/certificates"
+              element={
+                <ProtectedRoute>
+                  <AdminCertificates />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/admin/footer-settings"
               element={
                 <ProtectedRoute>
@@ -504,6 +524,15 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AdminCarts />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/timepulse-import"
+              element={
+                <ProtectedRoute>
+                  <AdminTimepulseImport />
                 </ProtectedRoute>
               }
             />

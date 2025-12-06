@@ -18,8 +18,9 @@ interface BibListing {
     elevation_gain: number;
   };
   events: {
+    slug: string;
     name: string;
-    date: string;
+    start_date: string;
     city: string;
   };
 }
@@ -29,6 +30,7 @@ export default function BuyBib() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [listing, setListing] = useState<BibListing | null>(null);
+  const [eventSlug, setEventSlug] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -61,7 +63,7 @@ export default function BuyBib() {
         .select(`
           *,
           races(name, distance, elevation_gain),
-          events(name, date, city)
+          events(slug, name, start_date, city)
         `)
         .eq('id', listingId)
         .eq('status', 'available')
@@ -69,6 +71,7 @@ export default function BuyBib() {
 
       if (error) throw error;
       setListing(data);
+      if (data?.events?.slug) setEventSlug(data.events.slug);
     } catch (error) {
       console.error('Error loading listing:', error);
       alert('Dossard non disponible');
@@ -192,7 +195,7 @@ export default function BuyBib() {
 
       alert(`Félicitations ! Vous avez acheté le dossard #${listing.bib_number || 'N/A'} pour ${listing.sale_price.toFixed(2)}€\n\nVous recevrez un email de confirmation avec tous les détails.`);
 
-      navigate(`/event/${eventId}`);
+      navigate(`/events/${eventSlug || eventId}`);
     } catch (error) {
       console.error('Error buying bib:', error);
       alert('Erreur lors de l\'achat du dossard');
@@ -216,7 +219,7 @@ export default function BuyBib() {
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Dossard non disponible</h1>
           <Link
-            to={`/events/${eventId}/bib-exchange`}
+            to={`/events/${eventSlug || eventId}/bib-exchange`}
             className="text-pink-600 hover:text-pink-700"
           >
             Retour à la bourse aux dossards
@@ -231,7 +234,7 @@ export default function BuyBib() {
       <div className="bg-gradient-to-r from-pink-600 to-purple-600 text-white py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <Link
-            to={`/events/${eventId}/bib-exchange`}
+            to={`/events/${eventSlug || eventId}/bib-exchange`}
             className="inline-flex items-center text-pink-100 hover:text-white mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -482,7 +485,7 @@ export default function BuyBib() {
 
           <div className="flex justify-between items-center">
             <Link
-              to={`/events/${eventId}/bib-exchange`}
+              to={`/events/${eventSlug || eventId}/bib-exchange`}
               className="text-gray-600 hover:text-gray-800"
             >
               Annuler

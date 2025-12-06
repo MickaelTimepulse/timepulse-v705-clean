@@ -22,6 +22,7 @@ interface Race {
   distance: number;
   sport_type: string;
   result_count: number;
+  slug?: string;
 }
 
 interface EventStats {
@@ -65,7 +66,7 @@ export default function EventResultsDetail() {
 
       const { data: racesData, error: racesError } = await supabase
         .from('races')
-        .select('id, name, distance, sport_type')
+        .select('id, name, distance, sport_type, slug')
         .eq('event_id', eventData.id);
 
       if (racesError) throw racesError;
@@ -238,8 +239,9 @@ export default function EventResultsDetail() {
           Retour aux résultats
         </Link>
 
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
-          <div className="aspect-[21/9] bg-gradient-to-br from-gray-100 to-gray-200 relative">
+        <div className="relative rounded-xl shadow-lg overflow-hidden mb-8 min-h-[400px] sm:min-h-[450px]">
+          {/* Image de fond */}
+          <div className="absolute inset-0">
             {event.image_url ? (
               <img
                 src={event.image_url}
@@ -247,132 +249,127 @@ export default function EventResultsDetail() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Calendar className="w-24 h-24 text-gray-400" />
+              <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+                <Calendar className="w-24 h-24 text-gray-600" />
               </div>
             )}
-            <div className={`absolute top-6 left-6 px-4 py-2 ${getSportColor(event.event_type)} rounded-lg text-sm font-bold text-white uppercase tracking-wide shadow-lg`}>
-              {event.event_type}
-            </div>
+            {/* Overlay sombre */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70"></div>
           </div>
 
-          <div className="p-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">{event.name}</h1>
-            <div className="flex items-center space-x-6 text-gray-600">
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-5 h-5 text-pink-500" />
-                <span>{formatDate(event.start_date)}</span>
+          {/* Contenu sur l'image */}
+          <div className="relative z-10 p-6 sm:p-8 text-white">
+            {/* En-tête avec titre et type de sport */}
+            <div className="flex flex-col sm:flex-row items-start justify-between mb-6 gap-3">
+              <div className="flex-1">
+                <h1 className="text-3xl sm:text-5xl font-bold mb-3 drop-shadow-lg leading-tight">
+                  {event.name}
+                </h1>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 text-white/90">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-pink-400" />
+                    <span className="text-base sm:text-lg">{formatDate(event.start_date)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-cyan-400" />
+                    <span className="text-base sm:text-lg">{event.city}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <MapPin className="w-5 h-5 text-cyan-500" />
-                <span>{event.city}</span>
+              <div className="text-left sm:text-right group">
+                <div className="text-xl sm:text-2xl font-bold tracking-wider bg-gradient-to-r from-white via-pink-100 to-white bg-clip-text text-transparent animate-shimmer bg-[length:200%_100%] transition-all duration-300 group-hover:scale-105 drop-shadow-lg">
+                  Timepulse
+                </div>
+                <div className="text-xs text-pink-200 uppercase tracking-wide opacity-90 transition-opacity duration-300 group-hover:opacity-100">
+                  Chronométrage
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-          <div className="flex items-center space-x-3 mb-6">
-            <TrendingUp className="w-6 h-6 text-pink-500" />
-            <h2 className="text-2xl font-bold text-gray-900">Statistiques de l'Événement</h2>
-          </div>
+            {/* Statistiques en overlay avec style caractéristiques */}
+            <div className="mt-8">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-5 h-5 text-pink-400" />
+                <h2 className="text-xl sm:text-2xl font-bold drop-shadow-lg">Statistiques de l'Événement</h2>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-lg p-6">
-              <Trophy className="w-8 h-8 text-pink-600 mb-2" />
-              <div className="text-3xl font-bold text-gray-900">{stats.total_results.toLocaleString()}</div>
-              <div className="text-sm text-gray-600">Résultats</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Trophy className="w-5 h-5 text-pink-400" />
+                    <div className="text-xs text-white/70 uppercase tracking-wide font-medium">Résultats</div>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-bold">{stats.total_results.toLocaleString()}</div>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users className="w-5 h-5 text-blue-400" />
+                    <div className="text-xs text-white/70 uppercase tracking-wide font-medium">Participants</div>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-bold">{uniqueAthletes.size.toLocaleString()}</div>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Award className="w-5 h-5 text-green-400" />
+                    <div className="text-xs text-white/70 uppercase tracking-wide font-medium">Épreuves</div>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-bold">{races.length}</div>
+                </div>
+              </div>
             </div>
 
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6">
-              <Users className="w-8 h-8 text-blue-600 mb-2" />
-              <div className="text-3xl font-bold text-gray-900">{uniqueAthletes.size.toLocaleString()}</div>
-              <div className="text-sm text-gray-600">Participants</div>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6">
-              <Award className="w-8 h-8 text-green-600 mb-2" />
-              <div className="text-3xl font-bold text-gray-900">{races.length}</div>
-              <div className="text-sm text-gray-600">Épreuves</div>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-6">
-              <Activity className="w-8 h-8 text-purple-600 mb-2" />
-              <div className="text-3xl font-bold text-gray-900">{Object.keys(stats.by_license).length}</div>
-              <div className="text-sm text-gray-600">Types de Licence</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Par Genre</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Hommes</span>
-                  <span className="font-semibold">
-                    {stats.by_gender.male}
-                    <span className="text-xs text-gray-500 ml-1">
+            {/* Statistiques Par Genre */}
+            <div className="col-span-2 sm:col-span-4 mt-4">
+              <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                <Users className="w-5 h-5 text-pink-400" />
+                Par Genre
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                  <div className="text-sm text-white/70 mb-1">Hommes</div>
+                  <div className="text-xl font-bold">
+                    {stats.by_gender.male.toLocaleString()}
+                    <span className="text-sm text-white/60 ml-2">
                       ({stats.total_results > 0 ? ((stats.by_gender.male / stats.total_results) * 100).toFixed(1) : 0}%)
                     </span>
-                  </span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Femmes</span>
-                  <span className="font-semibold">
-                    {stats.by_gender.female}
-                    <span className="text-xs text-gray-500 ml-1">
+                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                  <div className="text-sm text-white/70 mb-1">Femmes</div>
+                  <div className="text-xl font-bold">
+                    {stats.by_gender.female.toLocaleString()}
+                    <span className="text-sm text-white/60 ml-2">
                       ({stats.total_results > 0 ? ((stats.by_gender.female / stats.total_results) * 100).toFixed(1) : 0}%)
                     </span>
-                  </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Par Épreuve</h3>
-              <div className="space-y-2">
-                {Object.entries(stats.by_race).slice(0, 3).map(([race, count]) => (
-                  <div key={race} className="flex justify-between text-sm">
-                    <span className="text-gray-600 truncate pr-2">{race}</span>
-                    <span className="font-semibold">
-                      {count}
-                      <span className="text-xs text-gray-500 ml-1">
-                        ({stats.total_results > 0 ? ((count / stats.total_results) * 100).toFixed(1) : 0}%)
-                      </span>
-                    </span>
-                  </div>
-                ))}
+            {/* Statistiques Par Épreuve */}
+            {Object.keys(stats.by_race).length > 0 && (
+              <div className="col-span-2 sm:col-span-4 mt-4">
+                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                  <Award className="w-5 h-5 text-green-400" />
+                  Par Épreuve
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {Object.entries(stats.by_race).map(([race, count]) => (
+                    <div key={race} className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                      <div className="text-sm text-white/70 mb-1 truncate" title={race}>{race}</div>
+                      <div className="text-xl font-bold">
+                        {count.toLocaleString()}
+                        <span className="text-sm text-white/60 ml-2">
+                          ({stats.total_results > 0 ? ((count / stats.total_results) * 100).toFixed(1) : 0}%)
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Par Licence</h3>
-              <div className="space-y-2">
-                {Object.entries(stats.by_license).slice(0, 3).map(([license, count]) => (
-                  <div key={license} className="flex justify-between text-sm">
-                    <span className="text-gray-600">{license}</span>
-                    <span className="font-semibold">
-                      {count}
-                      <span className="text-xs text-gray-500 ml-1">
-                        ({stats.total_results > 0 ? ((count / stats.total_results) * 100).toFixed(1) : 0}%)
-                      </span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Par Âge</h3>
-              <div className="space-y-2">
-                {Object.entries(stats.by_age_group).slice(0, 3).map(([age, count]) => (
-                  <div key={age} className="flex justify-between text-sm">
-                    <span className="text-gray-600">{age}</span>
-                    <span className="font-semibold">{count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -387,45 +384,55 @@ export default function EventResultsDetail() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {races.map((race) => (
-                <div
+                <Link
                   key={race.id}
-                  className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all overflow-hidden border border-gray-200 flex flex-col"
+                  to={`/races/${race.slug || race.id}/results`}
+                  className="relative rounded-xl shadow-lg overflow-hidden min-h-[280px] hover:shadow-2xl transition-all duration-300 group"
                 >
-                  <div className="p-6 flex-1 flex flex-col">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
-                          {race.name}
-                        </h3>
-                        <p className="text-sm text-gray-600">{race.distance} km</p>
-                      </div>
-                      <div className={`px-3 py-1 ${getSportColor(race.sport_type)} rounded-lg text-xs font-bold text-white uppercase`}>
+                  {/* Image de fond */}
+                  <div className="absolute inset-0">
+                    <div
+                      className="w-full h-full bg-cover bg-center"
+                      style={{
+                        backgroundImage: `url(${event.image_url || getSportImage(race.sport_type as any)})`
+                      }}
+                    />
+                    {/* Overlay sombre */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70 group-hover:from-black/70 group-hover:via-black/60 group-hover:to-black/80 transition-all duration-300"></div>
+                  </div>
+
+                  {/* Contenu en overlay */}
+                  <div className="relative z-10 p-6 text-white h-full flex flex-col">
+                    {/* En-tête avec titre et type */}
+                    <div className="mb-4">
+                      <div className={`inline-block px-3 py-1 ${getSportColor(race.sport_type)} rounded-lg text-xs font-bold uppercase mb-3 shadow-lg`}>
                         {race.sport_type}
                       </div>
+                      <h3 className="text-xl font-bold drop-shadow-lg leading-tight mb-2">
+                        {race.name}
+                      </h3>
+                      <p className="text-white/80 text-sm">{race.distance} km</p>
                     </div>
 
-                    <div className="flex items-center space-x-2 text-gray-600 mb-4">
-                      <Users className="w-4 h-4" />
-                      <span className="text-sm">{race.result_count} résultat{race.result_count > 1 ? 's' : ''}</span>
-                    </div>
+                    {/* Statistiques en overlay avec style caractéristiques */}
+                    <div className="mt-auto space-y-3">
+                      <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Users className="w-5 h-5 text-blue-400" />
+                            <span className="text-sm text-white/70 uppercase tracking-wide font-medium">Participants</span>
+                          </div>
+                          <span className="text-2xl font-bold">{race.result_count}</span>
+                        </div>
+                      </div>
 
-                    <div className="mt-auto">
-                      <Link
-                        to={`/races/${race.id}/results`}
-                        className="relative flex items-center justify-center w-full text-white font-semibold py-3 rounded-lg transition-all shadow-md hover:shadow-lg overflow-hidden group"
-                        style={{
-                          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.5)), url(${getSportImage(race.sport_type as any)})`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center'
-                        }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 to-pink-600/20 group-hover:from-pink-500/30 group-hover:to-pink-600/30 transition-all"></div>
-                        <Trophy className="w-4 h-4 mr-2 relative z-10" />
-                        <span className="relative z-10">Voir les résultats</span>
-                      </Link>
+                      <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg group-hover:bg-white/15 transition-all duration-200 flex items-center justify-center gap-2">
+                        <Trophy className="w-5 h-5" />
+                        <span className="font-semibold">Voir les résultats</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}

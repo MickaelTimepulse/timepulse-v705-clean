@@ -175,7 +175,7 @@ export default function Footer() {
           </div>
 
           {/* Carte de France avec positionnement Timepulse */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 -mt-6">
             <div className="relative bg-gradient-to-br from-gray-800/50 to-gray-900/30 border border-gray-700/30 rounded-xl p-4 overflow-hidden">
               {/* Fond subtil */}
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-500/5 via-transparent to-transparent"></div>
@@ -205,7 +205,7 @@ export default function Footer() {
                 </div>
 
                 {/* Carte de France horizontale avec itinéraire */}
-                <div className="relative h-32 w-full">
+                <div className="relative h-48 w-full">
                   {/* Silhouette France en arrière-plan */}
                   <svg viewBox="0 0 600 200" className="w-full h-full absolute opacity-10">
                     <path
@@ -248,7 +248,7 @@ export default function Footer() {
                     </defs>
 
                     {/* Ligne principale horizontale */}
-                    <path d="M 20 100 L 60 100 L 100 100 L 180 100 L 260 100 L 310 100 L 360 100 L 440 100 L 500 100 L 580 100" fill="none" stroke="url(#routeGradient)" strokeWidth="2.5" strokeDasharray="6,4" className="animate-pulse" style={{ animationDuration: '2s' }} />
+                    <path d="M 20 100 L 60 100 L 100 100 L 180 100 L 260 100 L 310 100 L 360 100 L 440 100 L 500 100 L 580 100" fill="none" stroke="url(#routeGradient)" strokeWidth="3" strokeDasharray="8,4" className="animate-pulse" style={{ animationDuration: '2s' }} />
                     {/* Lignes rayonnantes depuis Loireauxence */}
                     <path d="M 260 100 L 20 100" fill="none" stroke="#3b82f6" strokeWidth="1.2" strokeDasharray="5,5" opacity="0.4" className="animated-line" />
                     <path d="M 260 100 L 580 100" fill="none" stroke="#ef4444" strokeWidth="1.2" strokeDasharray="5,5" opacity="0.4" className="animated-line" />
@@ -258,45 +258,45 @@ export default function Footer() {
                     <path d="M 260 100 L 165 145" fill="none" stroke="#a855f7" strokeWidth="1.2" strokeDasharray="5,5" opacity="0.4" className="animated-line" />
                     <path d="M 260 100 L 380 145" fill="none" stroke="#f59e0b" strokeWidth="1.2" strokeDasharray="5,5" opacity="0.4" className="animated-line" />
                     {/* Points villes principales */}
-                    <circle cx="20" cy="100" r="4" fill="#3b82f6" className="pulse-city" />
-                    <circle cx="60" cy="100" r="2.5" fill="#3b82f6" className="pulse-city" />
-                    <circle cx="100" cy="100" r="2.5" fill="#3b82f6" className="pulse-city" />
-                    <circle cx="180" cy="100" r="3.5" fill="#3b82f6" className="pulse-city" />
+                    <circle cx="20" cy="100" r="5" fill="#3b82f6" className="pulse-city" />
+                    <circle cx="60" cy="100" r="3.5" fill="#3b82f6" className="pulse-city" />
+                    <circle cx="100" cy="100" r="3.5" fill="#3b82f6" className="pulse-city" />
+                    <circle cx="180" cy="100" r="4.5" fill="#3b82f6" className="pulse-city" />
                     <g transform="translate(260, 100)">
-                      <circle r="18" fill="#fff" className="animate-ping" opacity="0.4" />
-                      <circle r="14" fill="#fff" className="pulse-city" opacity="0.3" />
-                      <image href="/TP copy.png" x="-10" y="-10" width="20" height="20" />
+                      <circle r="22" fill="#fff" className="animate-ping" opacity="0.4" />
+                      <circle r="18" fill="#fff" className="pulse-city" opacity="0.3" />
+                      <image href="/TP copy.png" x="-12" y="-12" width="24" height="24" />
                     </g>
-                    <circle cx="310" cy="100" r="3.5" fill="#f97316" className="pulse-city" />
-                    <circle cx="360" cy="100" r="2.5" fill="#f97316" className="pulse-city" />
-                    <circle cx="280" cy="35" r="2.5" fill="#10b981" className="pulse-city" />
-                    <circle cx="240" cy="155" r="2.5" fill="#8b5cf6" className="pulse-city" />
-                    <circle cx="440" cy="100" r="2.5" fill="#ef4444" className="pulse-city" />
-                    <circle cx="500" cy="100" r="2.5" fill="#ef4444" className="pulse-city" />
-                    <circle cx="580" cy="100" r="5" fill="#ef4444" className="pulse-city" />
+                    <circle cx="310" cy="100" r="4.5" fill="#f97316" className="pulse-city" />
+                    <circle cx="360" cy="100" r="3.5" fill="#f97316" className="pulse-city" />
+                    <circle cx="280" cy="35" r="3.5" fill="#10b981" className="pulse-city" />
+                    <circle cx="240" cy="155" r="3.5" fill="#8b5cf6" className="pulse-city" />
+                    <circle cx="440" cy="100" r="3.5" fill="#ef4444" className="pulse-city" />
+                    <circle cx="500" cy="100" r="3.5" fill="#ef4444" className="pulse-city" />
+                    <circle cx="580" cy="100" r="6" fill="#ef4444" className="pulse-city" />
                     {/* Points villes périphériques */}
-                    <circle cx="165" cy="55" r="2.5" fill="#06b6d4" className="pulse-city" />
-                    <circle cx="165" cy="145" r="2.5" fill="#a855f7" className="pulse-city" />
-                    <circle cx="380" cy="145" r="2.5" fill="#f59e0b" className="pulse-city" />
+                    <circle cx="165" cy="55" r="3.5" fill="#06b6d4" className="pulse-city" />
+                    <circle cx="165" cy="145" r="3.5" fill="#a855f7" className="pulse-city" />
+                    <circle cx="380" cy="145" r="3.5" fill="#f59e0b" className="pulse-city" />
                   </svg>
 
                   {/* Labels */}
                   <svg viewBox="0 0 600 200" className="w-full h-full absolute pointer-events-none">
-                    <text x="20" y="115" fontSize="10" fill="#3b82f6" fontWeight="500" textAnchor="middle">Plogoff</text>
-                    <text x="60" y="115" fontSize="9" fill="#9ca3af" textAnchor="middle">Quimper</text>
-                    <text x="100" y="115" fontSize="9" fill="#9ca3af" textAnchor="middle">Vannes</text>
-                    <text x="180" y="115" fontSize="10" fill="#9ca3af" textAnchor="middle">Nantes</text>
-                    <text x="260" y="85" fontSize="10" fill="#f97316" fontWeight="600" textAnchor="middle">Loireauxence</text>
-                    <text x="310" y="115" fontSize="10" fill="#9ca3af" textAnchor="middle">Angers</text>
-                    <text x="360" y="115" fontSize="10" fill="#9ca3af" textAnchor="middle">Le Mans</text>
-                    <text x="280" y="25" fontSize="9" fill="#10b981" textAnchor="middle">Laval</text>
-                    <text x="240" y="170" fontSize="9" fill="#8b5cf6" textAnchor="middle">Cholet</text>
-                    <text x="440" y="115" fontSize="10" fill="#9ca3af" textAnchor="middle">Chartres</text>
-                    <text x="500" y="115" fontSize="9" fill="#9ca3af" textAnchor="middle">Orléans</text>
-                    <text x="580" y="115" fontSize="10" fill="#ef4444" fontWeight="500" textAnchor="middle">Paris</text>
-                    <text x="165" y="45" fontSize="9" fill="#06b6d4" textAnchor="middle">Rennes</text>
-                    <text x="165" y="160" fontSize="9" fill="#a855f7" textAnchor="middle">La Roche-sur-Yon</text>
-                    <text x="380" y="160" fontSize="9" fill="#f59e0b" textAnchor="middle">Tours</text>
+                    <text x="20" y="118" fontSize="11" fill="#3b82f6" fontWeight="600" textAnchor="middle">Plogoff</text>
+                    <text x="60" y="118" fontSize="10" fill="#9ca3af" textAnchor="middle">Quimper</text>
+                    <text x="100" y="118" fontSize="10" fill="#9ca3af" textAnchor="middle">Vannes</text>
+                    <text x="180" y="118" fontSize="11" fill="#9ca3af" fontWeight="500" textAnchor="middle">Nantes</text>
+                    <text x="260" y="82" fontSize="12" fill="#f97316" fontWeight="700" textAnchor="middle">Loireauxence</text>
+                    <text x="310" y="118" fontSize="11" fill="#9ca3af" fontWeight="500" textAnchor="middle">Angers</text>
+                    <text x="360" y="118" fontSize="10" fill="#9ca3af" textAnchor="middle">Le Mans</text>
+                    <text x="280" y="22" fontSize="10" fill="#10b981" textAnchor="middle">Laval</text>
+                    <text x="240" y="173" fontSize="10" fill="#8b5cf6" textAnchor="middle">Cholet</text>
+                    <text x="440" y="118" fontSize="10" fill="#9ca3af" textAnchor="middle">Chartres</text>
+                    <text x="500" y="118" fontSize="10" fill="#9ca3af" textAnchor="middle">Orléans</text>
+                    <text x="580" y="118" fontSize="11" fill="#ef4444" fontWeight="600" textAnchor="middle">Paris</text>
+                    <text x="165" y="42" fontSize="10" fill="#06b6d4" textAnchor="middle">Rennes</text>
+                    <text x="165" y="163" fontSize="10" fill="#a855f7" textAnchor="middle">La Roche-sur-Yon</text>
+                    <text x="380" y="163" fontSize="10" fill="#f59e0b" textAnchor="middle">Tours</text>
                   </svg>
                 </div>
               </div>

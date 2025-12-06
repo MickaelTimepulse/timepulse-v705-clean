@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Users, Search, Award } from 'lucide-react';
 import { loadCountries, getCountryByCode, type Country } from '../lib/countries';
 import { formatAthleteName } from '../lib/formatters';
+import ScrollableStatCard from './ScrollableStatCard';
 
 interface Entry {
   id: string;
@@ -27,12 +28,15 @@ interface PublicEntriesListProps {
   raceId: string;
   raceName: string;
   eventName: string;
+  eventImageUrl?: string;
+  eventImagePositionX?: number;
+  eventImagePositionY?: number;
 }
 
 const ITEMS_PER_PAGE = 30;
 
 
-export default function PublicEntriesList({ raceId, raceName, eventName }: PublicEntriesListProps) {
+export default function PublicEntriesList({ raceId, raceName, eventName, eventImageUrl, eventImagePositionX = 50, eventImagePositionY = 50 }: PublicEntriesListProps) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -149,9 +153,10 @@ export default function PublicEntriesList({ raceId, raceName, eventName }: Publi
       return acc;
     }, {} as Record<string, number>);
 
-  const topClubs = Object.entries(clubStats)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5);
+  const allClubs = Object.entries(clubStats)
+    .sort(([, a], [, b]) => b - a);
+
+  const topClubs = allClubs.slice(0, 5);
 
   const nationalityStats = entries
     .filter((e) => e.athletes.nationality)
@@ -161,9 +166,24 @@ export default function PublicEntriesList({ raceId, raceName, eventName }: Publi
       return acc;
     }, {} as Record<string, number>);
 
-  const topNationalities = Object.entries(nationalityStats)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5);
+  const allNationalities = Object.entries(nationalityStats)
+    .sort(([, a], [, b]) => b - a);
+
+  const topNationalities = allNationalities.slice(0, 5);
+
+  // Calculer la répartition Homme/Femme
+  const genderStats = entries.reduce((acc, entry) => {
+    const gender = entry.athletes.gender?.toUpperCase();
+    if (gender === 'M' || gender === 'HOMME' || gender === 'H') {
+      acc.men++;
+    } else if (gender === 'F' || gender === 'FEMME') {
+      acc.women++;
+    }
+    return acc;
+  }, { men: 0, women: 0 });
+
+  const menPercentage = entries.length > 0 ? Math.round((genderStats.men / entries.length) * 100) : 0;
+  const womenPercentage = entries.length > 0 ? Math.round((genderStats.women / entries.length) * 100) : 0;
 
   if (loading) {
     return (
@@ -175,97 +195,107 @@ export default function PublicEntriesList({ raceId, raceName, eventName }: Publi
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div className="flex-1 text-center">
-            <h1 className="text-3xl font-bold mb-2">{eventName}</h1>
-            <p className="text-pink-100 text-lg">
+      <div className="relative rounded-lg overflow-hidden shadow-lg min-h-[300px] sm:min-h-[280px]">
+        {/* Image de fond */}
+        <div
+          className="absolute inset-0 bg-cover bg-no-repeat"
+          style={{
+            backgroundImage: eventImageUrl ? `url(${eventImageUrl})` : 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+            backgroundPosition: `${eventImagePositionX}% ${eventImagePositionY}%`,
+          }}
+        >
+          {/* Overlay sombre pour améliorer la lisibilité */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70"></div>
+        </div>
+
+        {/* Contenu */}
+        <div className="relative z-10 p-4 sm:p-8 text-white">
+          <div className="flex flex-col sm:flex-row items-start justify-between mb-4 sm:mb-6 gap-3">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-4xl font-bold mb-2 drop-shadow-lg leading-tight">
+                Engagés - {eventName}
+              </h1>
+            </div>
+            <div className="text-left sm:text-right group">
+              <div className="text-xl sm:text-2xl font-bold tracking-wider bg-gradient-to-r from-white via-pink-100 to-white bg-clip-text text-transparent animate-shimmer bg-[length:200%_100%] transition-all duration-300 group-hover:scale-105 drop-shadow-lg">
+                Timepulse
+              </div>
+              <div className="text-xs text-pink-200 uppercase tracking-wide opacity-90 transition-opacity duration-300 group-hover:opacity-100">
+                Chronométrage
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-white/90 text-base sm:text-lg font-medium drop-shadow">
               {entries.length} participant{entries.length > 1 ? 's' : ''} inscrit{entries.length > 1 ? 's' : ''} • {raceName}
             </p>
-          </div>
-          <div className="text-right group">
-            <div className="text-2xl font-bold tracking-wider bg-gradient-to-r from-white via-pink-100 to-white bg-clip-text text-transparent animate-shimmer bg-[length:200%_100%] transition-all duration-300 group-hover:scale-105">
-              Timepulse
-            </div>
-            <div className="text-xs text-pink-200 uppercase tracking-wide opacity-90 transition-opacity duration-300 group-hover:opacity-100">
-              Chronométrage
+
+            {/* Répartition Homme/Femme */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 text-sm">
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-full">
+                <span className="text-blue-300 font-semibold">👨 Hommes:</span>
+                <span className="font-bold text-white">{genderStats.men}</span>
+                <span className="text-white/70">({menPercentage}%)</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 sm:px-4 py-2 rounded-full">
+                <span className="text-pink-300 font-semibold">👩 Femmes:</span>
+                <span className="font-bold text-white">{genderStats.women}</span>
+                <span className="text-white/70">({womenPercentage}%)</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <Award className="w-4 h-4 text-pink-600" />
-            Catégories
-          </h3>
-          <div className="space-y-1.5">
-            {Object.entries(statsByCategory).map(([category, count]) => (
-              <div key={category} className="flex justify-between items-center text-xs">
-                <span className="text-gray-600">{category}</span>
-                <span className="font-semibold text-gray-900 bg-pink-50 px-2 py-0.5 rounded">{count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <ScrollableStatCard
+          title="Catégories"
+          icon={<Award className="w-4 h-4 text-pink-600" />}
+          items={Object.entries(statsByCategory).map(([category, count]) => ({
+            label: category,
+            value: count as number
+          }))}
+          maxVisible={5}
+          scrollSpeed={15}
+        />
 
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <Users className="w-4 h-4 text-pink-600" />
-            Clubs les plus représentés
-          </h3>
-          <div className="space-y-1.5">
-            {topClubs.length > 0 ? (
-              topClubs.map(([club, count]) => (
-                <div key={club} className="flex justify-between items-center text-xs">
-                  <span className="text-gray-600 truncate flex-1 mr-2 uppercase">{club}</span>
-                  <span className="font-semibold text-gray-900 bg-pink-50 px-2 py-0.5 rounded">{count}</span>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-gray-400 italic">Aucun club renseigné</p>
-            )}
-          </div>
-        </div>
+        <ScrollableStatCard
+          title="Clubs les plus représentés"
+          icon={<Users className="w-4 h-4 text-pink-600" />}
+          items={allClubs.length > 0 ? allClubs.map(([club, count]) => ({
+            label: club.toUpperCase(),
+            value: count as number
+          })) : [{ label: 'Aucun club renseigné', value: 0 }]}
+          maxVisible={5}
+          scrollSpeed={12}
+        />
 
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <span className="text-lg">🌍</span>
-            Nationalités
-          </h3>
-          <div className="space-y-1.5">
-            {topNationalities.length > 0 ? (
-              topNationalities.map(([nationality, count]) => {
-                const country = getCountryByCode(nationality, countries);
-                return (
-                  <div key={nationality} className="flex justify-between items-center text-xs group hover:bg-gray-50 p-1.5 rounded transition-colors">
-                    <span className="text-gray-600 flex items-center gap-2">
-                      {country && (
-                        <div className="relative transform transition-all duration-200 group-hover:scale-110" style={{ perspective: '500px' }}>
-                          <div style={{ transformStyle: 'preserve-3d', transform: 'rotateY(-3deg)' }}>
-                            <img
-                              src={country.flag_url}
-                              alt={country.name}
-                              className="w-6 h-4 object-cover rounded border border-gray-200 shadow-md"
-                              style={{
-                                boxShadow: '2px 2px 4px rgba(0,0,0,0.2)',
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                      <span className="font-medium">{nationality.toUpperCase()}</span>
-                    </span>
-                    <span className="font-semibold text-gray-900 bg-pink-50 px-2 py-0.5 rounded">{count}</span>
+        <ScrollableStatCard
+          title="Nationalités"
+          icon={<span className="text-lg">🌍</span>}
+          items={allNationalities.length > 0 ? allNationalities.map(([nationality, count]) => {
+            const country = getCountryByCode(nationality, countries);
+            return {
+              label: nationality.toUpperCase(),
+              value: count as number,
+              extra: country ? (
+                <div className="relative transform transition-all duration-200" style={{ perspective: '500px' }}>
+                  <div style={{ transformStyle: 'preserve-3d', transform: 'rotateY(-3deg)' }}>
+                    <img
+                      src={country.flag_url}
+                      alt={country.name}
+                      className="w-6 h-4 object-cover rounded border border-gray-200 shadow-md"
+                      style={{ boxShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}
+                    />
                   </div>
-                );
-              })
-            ) : (
-              <p className="text-xs text-gray-400 italic">Aucune nationalité renseignée</p>
-            )}
-          </div>
-        </div>
+                </div>
+              ) : null
+            };
+          }) : [{ label: 'Aucune nationalité renseignée', value: 0 }]}
+          maxVisible={5}
+          scrollSpeed={18}
+        />
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -303,15 +333,15 @@ export default function PublicEntriesList({ raceId, raceName, eventName }: Publi
             <p>Aucun participant trouvé</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-6 px-6">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-center py-2 px-3 font-semibold text-gray-700">Dossard</th>
-                  <th className="text-center py-2 px-3 font-semibold text-gray-700">Participant</th>
-                  <th className="text-center py-2 px-3 font-semibold text-gray-700 hidden md:table-cell">Nationalité</th>
-                  <th className="text-center py-2 px-3 font-semibold text-gray-700">Club / Association</th>
-                  <th className="text-center py-2 px-3 font-semibold text-gray-700 hidden sm:table-cell">Catégorie</th>
+                  <th className="text-center py-2 px-1 sm:px-3 font-semibold text-gray-700 text-xs sm:text-sm">N°</th>
+                  <th className="text-left py-2 px-2 sm:px-3 font-semibold text-gray-700 text-xs sm:text-sm">Participant</th>
+                  <th className="text-center py-2 px-1 sm:px-3 font-semibold text-gray-700 hidden md:table-cell text-xs sm:text-sm">Nationalité</th>
+                  <th className="text-left py-2 px-2 sm:px-3 font-semibold text-gray-700 text-xs sm:text-sm">Club</th>
+                  <th className="text-center py-2 px-1 sm:px-3 font-semibold text-gray-700 hidden lg:table-cell text-xs sm:text-sm">Cat.</th>
                 </tr>
               </thead>
               <tbody>
@@ -327,56 +357,50 @@ export default function PublicEntriesList({ raceId, raceName, eventName }: Publi
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       }`}
                     >
-                      <td className="py-2 px-3 text-center">
+                      <td className="py-2 px-1 sm:px-3 text-center">
                         <div className="hidden md:inline-flex items-center justify-center relative rounded-lg shadow-md overflow-hidden"
                           style={{
                             backgroundImage: 'url(/dossardsite.png)',
                             backgroundSize: 'cover',
                             backgroundPosition: 'center',
-                            width: '100px',
-                            height: '65px'
+                            width: '80px',
+                            height: '52px'
                           }}
                         >
-                          <span className="text-2xl font-black text-gray-800 relative z-10">
+                          <span className="text-xl font-black text-gray-800 relative z-10">
                             {entry.bib_number || '-'}
                           </span>
                         </div>
-                        <div className="md:hidden inline-flex items-center justify-center bg-gradient-to-br from-teal-500 to-teal-600 text-white px-3 py-2 rounded-lg shadow-sm">
-                          <span className="text-lg font-bold">
+                        <div className="md:hidden inline-flex items-center justify-center bg-gradient-to-br from-teal-500 to-teal-600 text-white px-2 py-1 rounded-lg shadow-sm min-w-[40px]">
+                          <span className="text-base font-bold">
                             {entry.bib_number || '-'}
                           </span>
                         </div>
                       </td>
-                      <td className="py-2 px-3 font-medium text-gray-900 text-center">
-                        <div className="flex items-center justify-center gap-2">
+                      <td className="py-2 px-2 sm:px-3 font-medium text-gray-900 text-left">
+                        <div className="flex items-center gap-1 sm:gap-2">
                           {entry.athletes.is_anonymous && (
                             <img
                               src="/AdobeStock_1549036275 copy.jpeg"
                               alt="Anonyme"
-                              className="w-7 h-7 object-contain"
+                              className="w-5 h-5 sm:w-7 sm:h-7 object-contain"
                             />
                           )}
-                          <span>{displayName}</span>
+                          <span className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{displayName}</span>
                         </div>
                       </td>
-                      <td className="py-2 px-3 text-center hidden md:table-cell">
+                      <td className="py-2 px-1 sm:px-3 text-center hidden md:table-cell">
                         {entry.athletes.nationality ? (
-                          <div className="flex flex-col items-center gap-1 group">
-                            <div className="relative transform transition-all duration-300 hover:scale-110 hover:-rotate-2" style={{ perspective: '1000px' }}>
-                              <div className="relative bg-gray-100 rounded-md p-0.5" style={{ transformStyle: 'preserve-3d', transform: 'rotateY(-5deg)' }}>
-                                <img
-                                  src={getCountryByCode(entry.athletes.nationality, countries)?.flag_url}
-                                  alt={getCountryByCode(entry.athletes.nationality, countries)?.name}
-                                  className="w-10 h-7 object-cover rounded border border-gray-300 shadow-lg transition-shadow duration-300 group-hover:shadow-2xl"
-                                  style={{
-                                    boxShadow: '3px 3px 6px rgba(0,0,0,0.15), 6px 6px 12px rgba(0,0,0,0.1)',
-                                  }}
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                  }}
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent rounded-md pointer-events-none" style={{ transform: 'translateZ(1px)' }}></div>
-                              </div>
+                          <div className="flex flex-col items-center gap-1.5 group">
+                            <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-gray-300 shadow-md transition-all duration-300 hover:scale-110 hover:border-pink-400 hover:shadow-lg">
+                              <img
+                                src={getCountryByCode(entry.athletes.nationality, countries)?.flag_url}
+                                alt={getCountryByCode(entry.athletes.nationality, countries)?.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
                             </div>
                             <span className="text-xs text-gray-600 font-semibold tracking-wider">
                               {entry.athletes.nationality}
@@ -386,10 +410,12 @@ export default function PublicEntriesList({ raceId, raceName, eventName }: Publi
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="py-2 px-3 text-gray-600 uppercase text-center">
-                        {entry.athletes.license_club || '-'}
+                      <td className="py-2 px-2 sm:px-3 text-gray-600 uppercase text-left">
+                        <span className="text-xs sm:text-sm truncate block max-w-[80px] sm:max-w-none">
+                          {entry.athletes.license_club || '-'}
+                        </span>
                       </td>
-                      <td className="py-2 px-3 text-center hidden sm:table-cell">
+                      <td className="py-2 px-1 sm:px-3 text-center hidden lg:table-cell">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
                           {entry.category}
                         </span>
@@ -418,30 +444,35 @@ export default function PublicEntriesList({ raceId, raceName, eventName }: Publi
               </button>
 
               <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                  if (
-                    page === 1 ||
-                    page === totalPages ||
-                    (page >= currentPage - 1 && page <= currentPage + 1)
-                  ) {
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((page) => {
                     return (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`px-3 py-1 rounded-md text-sm font-medium ${
-                          currentPage === page
-                            ? 'bg-pink-600 text-white'
-                            : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        {page}
-                      </button>
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 1 && page <= currentPage + 1) ||
+                      page === currentPage - 2 ||
+                      page === currentPage + 2
                     );
-                  } else if (page === currentPage - 2 || page === currentPage + 2) {
-                    return <span key={page} className="px-2 text-gray-400">...</span>;
-                  }
-                  return null;
-                })}
+                  })
+                  .map((page, index, array) => {
+                    const showEllipsisBefore = index > 0 && page - array[index - 1] > 1;
+
+                    return (
+                      <div key={page} className="flex items-center gap-1">
+                        {showEllipsisBefore && <span className="px-2 text-gray-400">...</span>}
+                        <button
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-1 rounded-md text-sm font-medium ${
+                            currentPage === page
+                              ? 'bg-pink-600 text-white'
+                              : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      </div>
+                    );
+                  })}
               </div>
 
               <button

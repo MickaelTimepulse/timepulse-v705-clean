@@ -3,6 +3,32 @@
  * Génère des fichiers CSV (compatibles Excel) sans dépendances lourdes
  */
 
+/**
+ * Fonction helper pour télécharger un fichier de manière sécurisée
+ * Évite les erreurs removeChild lors de la navigation rapide
+ */
+function safeDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+
+  // Nettoyage différé pour éviter les erreurs de timing
+  setTimeout(() => {
+    try {
+      if (link.parentNode === document.body) {
+        document.body.removeChild(link);
+      }
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error cleaning up download link:', err);
+    }
+  }, 100);
+}
+
 export interface ExportEntry {
   bibNumber: number;
   firstName: string;
@@ -82,11 +108,8 @@ export function exportToCSV(entries: ExportEntry[], filename: string = 'inscript
   const BOM = '\uFEFF';
   const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
 
-  // Télécharger
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
+  // Télécharger de manière sécurisée
+  safeDownload(blob, filename);
 }
 
 /**
@@ -122,10 +145,7 @@ export function exportToElogica(entries: ExportEntry[], filename: string = 'expo
   ].join('\n');
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
+  safeDownload(blob, filename);
 }
 
 /**
@@ -185,11 +205,7 @@ export function exportStats(
   const csvContent = lines.join('\n');
   const BOM = '\uFEFF';
   const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
+  safeDownload(blob, filename);
 }
 
 /**
@@ -214,11 +230,7 @@ export function exportEmails(entries: ExportEntry[], filename: string = 'emails.
 
   const BOM = '\uFEFF';
   const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
+  safeDownload(blob, filename);
 }
 
 /**
@@ -227,11 +239,7 @@ export function exportEmails(entries: ExportEntry[], filename: string = 'emails.
 export function exportToJSON(entries: ExportEntry[], filename: string = 'inscriptions.json'): void {
   const jsonContent = JSON.stringify(entries, null, 2);
   const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
-
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
+  safeDownload(blob, filename);
 }
 
 /**
@@ -262,8 +270,5 @@ export function exportBibLabels(
   const BOM = '\uFEFF';
   const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
 
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
+  safeDownload(blob, filename);
 }

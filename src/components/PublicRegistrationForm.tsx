@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { User, Calendar, Mail, Phone, MapPin, Home, CreditCard, FileText, AlertCircle, ArrowLeft, Users } from 'lucide-react';
 import { loadCountries, type Country } from '../lib/countries';
 import { checkCategoryRestriction } from '../lib/category-calculator';
+import RelayTeamRegistrationForm from './RelayTeamRegistrationForm';
 
 interface Race {
   id: string;
@@ -125,6 +126,8 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
   const [ageError, setAgeError] = useState<string>('');
   const [genderRestriction, setGenderRestriction] = useState<'all' | 'M' | 'F'>('all');
   const [localStorageRestored, setLocalStorageRestored] = useState(false);
+  const [isRelayRace, setIsRelayRace] = useState(false);
+  const [relaySegments, setRelaySegments] = useState<any[]>([]);
 
   // Deprecated: will be removed - replaced by cart system
   const isMultipleRegistration = false;
@@ -257,6 +260,29 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
     }
   };
 
+  const loadRelaySegments = async () => {
+    if (!selectedRaceId) {
+      setIsRelayRace(false);
+      setRelaySegments([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('relay_segments')
+      .select('*')
+      .eq('race_id', selectedRaceId)
+      .order('segment_order', { ascending: true });
+
+    if (!error && data && data.length > 0) {
+      console.log('🏃 [RELAY] Segments de relais détectés:', data.length);
+      setIsRelayRace(true);
+      setRelaySegments(data);
+    } else {
+      setIsRelayRace(false);
+      setRelaySegments([]);
+    }
+  };
+
   useEffect(() => {
     if (selectedRaceId) {
       console.log('🔄 [PublicRegistrationForm] useEffect selectedRaceId changé:', selectedRaceId);
@@ -273,12 +299,15 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
       loadRaceRegulations();
       loadAgeRestrictions();
       loadGenderRestriction();
+      loadRelaySegments();
     } else {
       console.log('⚠️ [PublicRegistrationForm] selectedRaceId vide, réinitialisation');
       setRaceOptions([]);
       setRacePricing([]);
       setLicenseTypes([]);
       setPricingPeriods([]);
+      setIsRelayRace(false);
+      setRelaySegments([]);
     }
   }, [selectedRaceId]);
 
@@ -1619,6 +1648,38 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
       setLoading(false);
     }
   };
+
+  // Si c'est un relais, afficher le formulaire spécifique relais
+  if (isRelayRace && relaySegments.length > 0) {
+    const selectedRace = races.find(r => r.id === selectedRaceId);
+    return (
+      <RelayTeamRegistrationForm
+        raceId={selectedRaceId}
+        raceName={selectedRace?.name || ''}
+        teamSize={relaySegments.length}
+        segments={relaySegments}
+        regulations={raceRegulations}
+        licenseTypes={licenseTypes}
+        raceOptions={raceOptions}
+        eventDate={eventDate ? eventDate.toISOString().split('T')[0] : undefined}
+        calorgCode={calorgCode}
+        isFFAAffiliated={!!calorgCode}
+        onComplete={(teamData) => {
+          console.log('🏁 [RELAY] Équipe complète:', teamData);
+          onComplete({
+            ...teamData,
+            event_id: eventId,
+            organizer_id: organizerId,
+            is_relay_team: true,
+          });
+        }}
+        onBack={() => {
+          setSelectedRaceId('');
+          setIsRelayRace(false);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg relative">

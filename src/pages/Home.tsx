@@ -12,7 +12,6 @@ export default function Home() {
     searchText: string;
     selectedSport: string;
     selectedMonth: string;
-    selectedCity: string;
     selectedCharacteristics: string[];
   } | null>(null);
 

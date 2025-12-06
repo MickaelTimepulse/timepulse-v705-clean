@@ -39,7 +39,8 @@ export async function login(credentials: LoginCredentials): Promise<User | null>
     console.log('[auth.ts] Creating Supabase Auth session for:', authEmail);
 
     // Try to sign in first (in case the user already exists)
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    let authUserId: string | null = null;
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: authEmail,
       password: user.user_id, // Use user_id as password
     });
@@ -48,7 +49,7 @@ export async function login(credentials: LoginCredentials): Promise<User | null>
       console.log('[auth.ts] Sign in failed, trying to create new user:', signInError.message);
 
       // If sign in fails, try to create the user
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: authEmail,
         password: user.user_id,
         options: {
@@ -65,10 +66,26 @@ export async function login(credentials: LoginCredentials): Promise<User | null>
         console.error('[auth.ts] Failed to create auth session:', signUpError);
         // Continue anyway, we'll use metadata storage
       } else {
-        console.log('[auth.ts] ✅ Created new Supabase Auth user');
+        authUserId = signUpData.user?.id || null;
+        console.log('[auth.ts] ✅ Created new Supabase Auth user:', authUserId);
       }
     } else {
-      console.log('[auth.ts] ✅ Signed in with existing Supabase Auth user');
+      authUserId = signInData.user?.id || null;
+      console.log('[auth.ts] ✅ Signed in with existing Supabase Auth user:', authUserId);
+    }
+
+    // Update admin_users.user_id with the Supabase Auth user ID
+    if (authUserId) {
+      const { error: updateError } = await supabase.rpc('update_admin_user_id', {
+        p_admin_id: user.user_id,
+        p_auth_user_id: authUserId
+      });
+
+      if (updateError) {
+        console.error('[auth.ts] Failed to link admin to Supabase Auth:', updateError);
+      } else {
+        console.log('[auth.ts] ✅ Linked admin_users.user_id to Supabase Auth ID');
+      }
     }
 
     await supabase.rpc('update_last_login', {

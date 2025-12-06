@@ -8,6 +8,7 @@ interface BibExchangeSettings {
   id: string;
   event_id: string;
   is_enabled: boolean;
+  transfer_opens_at: string | null;
   transfer_deadline: string | null;
   timepulse_fee_amount: number;
   allow_gender_mismatch: boolean;
@@ -77,6 +78,7 @@ export default function OrganizerBibExchange() {
 
   const [settingsForm, setSettingsForm] = useState({
     is_enabled: false,
+    transfer_opens_at: '',
     transfer_deadline: '',
     timepulse_fee_amount: 5.00,
     allow_gender_mismatch: false,
@@ -134,6 +136,7 @@ export default function OrganizerBibExchange() {
         setSettings(settingsData);
         setSettingsForm({
           is_enabled: settingsData.is_enabled,
+          transfer_opens_at: settingsData.transfer_opens_at ? new Date(settingsData.transfer_opens_at).toISOString().slice(0, 16) : '',
           transfer_deadline: settingsData.transfer_deadline ? new Date(settingsData.transfer_deadline).toISOString().slice(0, 16) : '',
           timepulse_fee_amount: settingsData.timepulse_fee_amount,
           allow_gender_mismatch: settingsData.allow_gender_mismatch,
@@ -182,6 +185,7 @@ export default function OrganizerBibExchange() {
       const payload = {
         event_id: eventId,
         ...settingsForm,
+        transfer_opens_at: settingsForm.transfer_opens_at ? new Date(settingsForm.transfer_opens_at).toISOString() : null,
         transfer_deadline: settingsForm.transfer_deadline ? new Date(settingsForm.transfer_deadline).toISOString() : null
       };
 
@@ -487,16 +491,33 @@ export default function OrganizerBibExchange() {
                   </label>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date limite de transfert
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={settingsForm.transfer_deadline}
-                    onChange={(e) => setSettingsForm({...settingsForm, transfer_deadline: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Date d'ouverture
+                      <span className="text-xs text-gray-500 ml-2">(optionnel)</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={settingsForm.transfer_opens_at}
+                      onChange={(e) => setSettingsForm({...settingsForm, transfer_opens_at: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Si vide, la bourse ouvre immédiatement</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Date de fermeture
+                      <span className="text-xs text-gray-500 ml-2">(optionnel)</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={settingsForm.transfer_deadline}
+                      onChange={(e) => setSettingsForm({...settingsForm, transfer_deadline: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Si vide, la bourse reste ouverte</p>
+                  </div>
                   <p className="text-xs text-gray-500 mt-1">
                     Après cette date, aucun transfert ne sera autorisé
                   </p>

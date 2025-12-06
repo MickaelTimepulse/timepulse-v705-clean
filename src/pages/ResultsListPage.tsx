@@ -214,50 +214,6 @@ export default function ResultsListPage() {
           </p>
         </div>
 
-        <div className="bg-gradient-to-r from-pink-600 to-purple-600 rounded-xl shadow-lg p-8 mb-12 text-white">
-          <div className="flex flex-col md:flex-row items-center justify-between">
-            <div className="flex-1 mb-6 md:mb-0">
-              <div className="flex items-center space-x-3 mb-4">
-                <Heart className="w-8 h-8" />
-                <h3 className="text-2xl font-bold">Pas encore partenaire Timepulse ?</h3>
-              </div>
-              <p className="text-lg mb-2">
-                Publiez tout de même vos résultats et profitez de <strong>la plateforme la plus aboutie</strong>
-              </p>
-              <p className="text-pink-100 text-sm">
-                Créée et développée par des sportifs comme vous ! 🏃‍♂️
-              </p>
-              <ul className="mt-4 space-y-2 text-sm">
-                <li className="flex items-center space-x-2">
-                  <Trophy className="w-5 h-5 text-pink-200" />
-                  <span>Service 100% gratuit et sans engagement</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <TrendingUp className="w-5 h-5 text-pink-200" />
-                  <span>Référencement SEO optimal pour vos participants</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <Users className="w-5 h-5 text-pink-200" />
-                  <span>Profils athlètes enrichis automatiquement</span>
-                </li>
-              </ul>
-            </div>
-            <div className="flex-shrink-0">
-              <Link
-                to="/publier-resultats"
-                className="inline-flex items-center space-x-3 px-8 py-4 bg-white text-pink-600 rounded-lg hover:bg-pink-50 transition shadow-lg font-bold text-lg"
-              >
-                <Upload className="w-6 h-6" />
-                <span>Publier mes résultats</span>
-                <ArrowRight className="w-6 h-6" />
-              </Link>
-              <p className="text-center text-xs text-pink-100 mt-3">
-                En 5 minutes seulement
-              </p>
-            </div>
-          </div>
-        </div>
-
         <div className="bg-white rounded-xl shadow-lg p-6 mb-12">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
@@ -426,6 +382,50 @@ export default function ResultsListPage() {
               ))}
             </div>
           )}
+        </div>
+
+        <div className="bg-gradient-to-r from-pink-600 to-purple-600 rounded-xl shadow-lg p-8 mt-12 text-white">
+          <div className="flex flex-col md:flex-row items-center justify-between">
+            <div className="flex-1 mb-6 md:mb-0">
+              <div className="flex items-center space-x-3 mb-4">
+                <Heart className="w-8 h-8" />
+                <h3 className="text-2xl font-bold">Pas encore partenaire Timepulse ?</h3>
+              </div>
+              <p className="text-lg mb-2">
+                Publiez tout de même vos résultats et profitez de <strong>la plateforme la plus aboutie</strong>
+              </p>
+              <p className="text-pink-100 text-sm">
+                Créée et développée par des sportifs comme vous ! 🏃‍♂️
+              </p>
+              <ul className="mt-4 space-y-2 text-sm">
+                <li className="flex items-center space-x-2">
+                  <Trophy className="w-5 h-5 text-pink-200" />
+                  <span>Service 100% gratuit et sans engagement</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <TrendingUp className="w-5 h-5 text-pink-200" />
+                  <span>Référencement SEO optimal pour vos participants</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <Users className="w-5 h-5 text-pink-200" />
+                  <span>Profils athlètes enrichis automatiquement</span>
+                </li>
+              </ul>
+            </div>
+            <div className="flex-shrink-0">
+              <Link
+                to="/publier-resultats"
+                className="inline-flex items-center space-x-3 px-8 py-4 bg-white text-pink-600 rounded-lg hover:bg-pink-50 transition shadow-lg font-bold text-lg"
+              >
+                <Upload className="w-6 h-6" />
+                <span>Publier mes résultats</span>
+                <ArrowRight className="w-6 h-6" />
+              </Link>
+              <p className="text-center text-xs text-pink-100 mt-3">
+                En 5 minutes seulement
+              </p>
+            </div>
+          </div>
         </div>
       </main>
 

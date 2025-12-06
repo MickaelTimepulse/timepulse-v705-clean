@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Tag, MapPin, Calendar, Users, Info, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
+import { Tag, MapPin, Calendar, Users, Info, RefreshCw, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { getBackgroundImageByType } from '../lib/background-images';
 
 interface BibExchangeSettings {
   is_enabled: boolean;
+  transfer_opens_at: string | null;
   transfer_deadline: string | null;
   allow_gender_mismatch: boolean;
   rules_text: string | null;
@@ -29,8 +30,9 @@ interface BibListing {
 
 interface Event {
   id: string;
+  slug: string;
   name: string;
-  date: string;
+  start_date: string;
   location: string;
   city: string;
   image_url: string;
@@ -86,7 +88,7 @@ export default function BibExchange() {
 
       const { data: eventData, error: eventError } = await supabase
         .from('events')
-        .select('*')
+        .select('id, slug, name, start_date, location, city, image_url')
         .eq('id', eventId)
         .single();
 
@@ -108,9 +110,19 @@ export default function BibExchange() {
         .eq('event_id', eventId)
         .maybeSingle();
 
-      console.log('Bib Exchange Settings Query:', { settingsData, settingsError, eventId });
+      console.log('Bib Exchange Settings Query:', {
+        settingsData,
+        settingsError,
+        eventId,
+        hasSettings: !!settingsData,
+        isEnabled: settingsData?.is_enabled
+      });
 
-      if (settingsError) throw settingsError;
+      if (settingsError) {
+        console.error('Error loading bib exchange settings:', settingsError);
+        throw settingsError;
+      }
+
       setSettings(settingsData);
 
       if (settingsData?.is_enabled) {
@@ -183,6 +195,11 @@ export default function BibExchange() {
       hour: '2-digit',
       minute: '2-digit'
     }).format(date);
+  };
+
+  const isNotYetOpen = () => {
+    if (!settings?.transfer_opens_at) return false;
+    return new Date() < new Date(settings.transfer_opens_at);
   };
 
   const isDeadlinePassed = () => {
@@ -268,7 +285,34 @@ export default function BibExchange() {
               La bourse aux dossards n'est pas activée pour cet événement.
             </p>
             <Link
-              to={`/event/${eventId}`}
+              to={`/events/${event?.slug || eventId}`}
+              className="inline-flex items-center px-6 py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
+            >
+              Retour à l'événement
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isNotYetOpen()) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="bg-white rounded-lg shadow-lg p-12 text-center">
+            <Calendar className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Bourse aux dossards pas encore ouverte</h1>
+            <p className="text-gray-600 mb-6">
+              La bourse aux dossards ouvrira bientôt.
+              {settings.transfer_opens_at && (
+                <span className="block mt-2 font-semibold text-pink-600">
+                  Date d'ouverture : {formatDateTime(settings.transfer_opens_at)}
+                </span>
+              )}
+            </p>
+            <Link
+              to={`/events/${event?.slug || eventId}`}
               className="inline-flex items-center px-6 py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
             >
               Retour à l'événement
@@ -289,13 +333,13 @@ export default function BibExchange() {
             <p className="text-gray-600 mb-6">
               La date limite pour les transferts de dossards est dépassée.
               {settings.transfer_deadline && (
-                <span className="block mt-2">
-                  Date limite : {formatDateTime(settings.transfer_deadline)}
+                <span className="block mt-2 font-semibold text-pink-600">
+                  Date de fermeture : {formatDateTime(settings.transfer_deadline)}
                 </span>
               )}
             </p>
             <Link
-              to={`/event/${eventId}`}
+              to={`/events/${event?.slug || eventId}`}
               className="inline-flex items-center px-6 py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
             >
               Retour à l'événement
@@ -321,9 +365,20 @@ export default function BibExchange() {
       <div className="relative z-10">
       <div className="bg-gradient-to-r from-pink-600 to-purple-600 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center mb-4">
-            <Tag className="w-8 h-8 mr-3" />
-            <h1 className="text-4xl font-bold">Bourse aux Dossards</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <div className="flex items-center">
+              <Tag className="w-8 h-8 mr-3" />
+              <h1 className="text-3xl sm:text-4xl font-bold">Bourse aux Dossards</h1>
+            </div>
+            {event && (
+              <Link
+                to={`/events/${event.slug}`}
+                className="inline-flex items-center justify-center px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors backdrop-blur-sm whitespace-nowrap"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Retour à l'événement
+              </Link>
+            )}
           </div>
           {event && (
             <>
@@ -350,14 +405,24 @@ export default function BibExchange() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {settings.transfer_deadline && formatDateTime(settings.transfer_deadline) && (
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8">
-            <div className="flex">
-              <Info className="h-5 w-5 text-blue-400 mr-3" />
-              <div>
-                <p className="text-sm text-blue-700">
-                  <strong>Date limite de transfert :</strong> {formatDateTime(settings.transfer_deadline)}
-                </p>
+        {(settings.transfer_opens_at || settings.transfer_deadline) && (
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-l-4 border-blue-400 p-6 mb-8 rounded-r-lg">
+            <div className="flex items-start">
+              <Calendar className="h-6 w-6 text-blue-500 mr-3 mt-1" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Période de la bourse aux dossards</h3>
+                <div className="space-y-2">
+                  {settings.transfer_opens_at && (
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold text-green-700">📅 Ouverture :</span> {formatDateTime(settings.transfer_opens_at)}
+                    </p>
+                  )}
+                  {settings.transfer_deadline && (
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold text-orange-700">⏰ Fermeture :</span> {formatDateTime(settings.transfer_deadline)}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>

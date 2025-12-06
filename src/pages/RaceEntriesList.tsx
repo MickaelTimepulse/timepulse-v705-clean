@@ -22,7 +22,7 @@ export default function RaceEntriesList() {
       console.log('Loading event with slug:', eventSlug);
       const { data: eventData, error: eventError } = await supabase
         .from('events')
-        .select('*')
+        .select('id, name, slug, image_url, image_position_x, image_position_y')
         .eq('slug', eventSlug)
         .maybeSingle();
 
@@ -92,7 +92,14 @@ export default function RaceEntriesList() {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <PublicEntriesList raceId={raceId!} raceName={race.name} eventName={event.name} />
+          <PublicEntriesList
+            raceId={raceId!}
+            raceName={race.name}
+            eventName={event.name}
+            eventImageUrl={event.image_url}
+            eventImagePositionX={event.image_position_x}
+            eventImagePositionY={event.image_position_y}
+          />
         </div>
       </div>
 

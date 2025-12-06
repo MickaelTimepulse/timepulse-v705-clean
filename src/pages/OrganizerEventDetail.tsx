@@ -33,6 +33,8 @@ import { parseGPXFile, type GPXData } from '../lib/gpx-parser';
 import RacePricingManager from '../components/RacePricingManager';
 import RaceOptionsManager from '../components/RaceOptionsManager';
 import RaceCategoryManager from '../components/RaceCategoryManager';
+import RaceTeamConfig from '../components/RaceTeamConfig';
+import OrganizerTeamsManager from '../components/OrganizerTeamsManager';
 import { SPORT_LABELS, getSportImage, getSportLabel, type SportType } from '../lib/sport-images';
 import ManualEntryForm from '../components/ManualEntryForm';
 import EntriesList from '../components/EntriesList';
@@ -1864,6 +1866,24 @@ export default function OrganizerEventDetail() {
                                 >
                                   Règlement
                                 </button>
+                                <button
+                                  onClick={() => setRaceSubTab({...raceSubTab, [race.id]: 'teams'})}
+                                  className={`px-4 py-2.5 text-xs font-semibold transition-all rounded-t-lg ${
+                                    getRaceSubTabColor('teams', currentSubTab === 'teams')
+                                  }`}
+                                >
+                                  Configuration Équipes
+                                </button>
+                                {race.is_team_race && (
+                                  <button
+                                    onClick={() => setRaceSubTab({...raceSubTab, [race.id]: 'teams-manage'})}
+                                    className={`px-4 py-2.5 text-xs font-semibold transition-all rounded-t-lg ${
+                                      getRaceSubTabColor('teams-manage', currentSubTab === 'teams-manage')
+                                    }`}
+                                  >
+                                    Gestion Équipes
+                                  </button>
+                                )}
                               </div>
 
                               <div className="p-6">
@@ -2059,6 +2079,50 @@ export default function OrganizerEventDetail() {
                                       </button>
                                     </div>
                                   </div>
+                                )}
+
+                                {currentSubTab === 'teams' && (
+                                  <RaceTeamConfig
+                                    raceId={race.id}
+                                    isTeamRace={race.is_team_race || false}
+                                    teamConfig={race.team_config || {
+                                      enabled: false,
+                                      min_members: 2,
+                                      max_members: 6,
+                                      team_types: ['mixte'],
+                                      allow_mixed_gender: true,
+                                      require_full_team: false,
+                                      payment_mode: 'team',
+                                      allow_individual_payment: true,
+                                      modify_deadline_days: 7,
+                                      allow_multi_registration: false,
+                                      bib_format: 'suffix',
+                                      auto_assign_bibs: true,
+                                    }}
+                                    onChange={async (isTeamRace, teamConfig) => {
+                                      const { error } = await supabase
+                                        .from('races')
+                                        .update({
+                                          is_team_race: isTeamRace,
+                                          team_config: teamConfig,
+                                          team_rules: teamConfig.team_rules || null,
+                                        })
+                                        .eq('id', race.id);
+
+                                      if (error) {
+                                        console.error('Error updating team config:', error);
+                                      } else {
+                                        await loadEvent();
+                                      }
+                                    }}
+                                  />
+                                )}
+
+                                {currentSubTab === 'teams-manage' && race.is_team_race && (
+                                  <OrganizerTeamsManager
+                                    raceId={race.id}
+                                    raceName={race.name}
+                                  />
                                 )}
                               </div>
                             </div>

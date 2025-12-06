@@ -33,15 +33,15 @@ const ICON_MAP: Record<string, any> = {
 
 const SIZE_CLASSES = {
   sm: {
-    badge: 'px-2 py-1 text-xs',
-    icon: 'w-3 h-3',
+    badge: 'px-3 py-1.5 text-xs',
+    icon: 'w-3.5 h-3.5',
   },
   md: {
-    badge: 'px-3 py-1.5 text-sm',
+    badge: 'px-4 py-2 text-sm',
     icon: 'w-4 h-4',
   },
   lg: {
-    badge: 'px-4 py-2 text-base',
+    badge: 'px-5 py-2.5 text-base',
     icon: 'w-5 h-5',
   },
 };
@@ -66,7 +66,7 @@ export default function EventCharacteristicsBadges({
   const sizeClass = SIZE_CLASSES[size];
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2.5">
       {displayCharacteristics.map((char) => {
         const Icon = ICON_MAP[char.icon] || CheckCircle;
 
@@ -74,15 +74,20 @@ export default function EventCharacteristicsBadges({
           <div
             key={char.id}
             className={`
-              inline-flex items-center gap-1.5 rounded-full font-medium
-              bg-white border-2 shadow-sm transition-all hover:shadow-md
+              inline-flex items-center gap-2 rounded-full font-semibold
+              backdrop-blur-md shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105
               ${sizeClass.badge}
             `}
-            style={{ borderColor: char.color }}
+            style={{
+              background: `linear-gradient(135deg, ${char.color}15 0%, ${char.color}25 100%)`,
+              border: `2px solid ${char.color}`,
+              color: 'white',
+              textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+            }}
             title={char.name}
           >
-            <Icon className={sizeClass.icon} style={{ color: char.color }} />
-            <span style={{ color: char.color }}>{char.name}</span>
+            <Icon className={sizeClass.icon} style={{ color: 'white', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }} />
+            <span>{char.name}</span>
           </div>
         );
       })}
@@ -90,10 +95,16 @@ export default function EventCharacteristicsBadges({
       {remaining > 0 && (
         <div
           className={`
-            inline-flex items-center gap-1 rounded-full font-medium
-            bg-gray-100 text-gray-700 border-2 border-gray-300
+            inline-flex items-center gap-1 rounded-full font-semibold
+            backdrop-blur-md shadow-lg border-2 transition-all duration-300 hover:scale-105
             ${sizeClass.badge}
           `}
+          style={{
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.3) 100%)',
+            borderColor: 'rgba(255,255,255,0.6)',
+            color: 'white',
+            textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+          }}
         >
           +{remaining}
         </div>

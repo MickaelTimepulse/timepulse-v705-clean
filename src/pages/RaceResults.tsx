@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Search, FileDown, Trophy, Clock, User, ArrowLeft, Users, Award, TrendingUp, Flag } from 'lucide-react';
+import { Search, FileDown, Trophy, Clock, User, ArrowLeft, Users, Award, TrendingUp, Flag, Calendar, MapPin } from 'lucide-react';
 import { generateResultsPDF } from '../lib/results-pdf-generator';
 import { supabase } from '../lib/supabase';
 import Header from '../components/Layout/Header';
 import Footer from '../components/Layout/Footer';
+import CertificateShareModal from '../components/CertificateShareModal';
+import { ResultData } from '../lib/certificate-generator';
 
 const getCountryCode = (countryCode: string | undefined): string => {
   if (!countryCode) return '';
@@ -27,6 +29,28 @@ const getCountryCode = (countryCode: string | undefined): string => {
   const alpha2 = code.length === 3 ? alpha3ToAlpha2[code] : code;
 
   return alpha2 && alpha2.length === 2 ? alpha2.toLowerCase() : '';
+};
+
+const getSportImage = (sportType: string): string => {
+  const images: { [key: string]: string } = {
+    'course': 'https://images.unsplash.com/photo-1452626038306-9aae5e071dd3?auto=format&fit=crop&q=80',
+    'trail': 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&q=80',
+    'triathlon': 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&q=80',
+    'velo': 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?auto=format&fit=crop&q=80',
+    'natation': 'https://images.unsplash.com/photo-1560053110-d1c714d96df9?auto=format&fit=crop&q=80',
+    'marche': 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&q=80'
+  };
+  return images[sportType?.toLowerCase()] || images['course'];
+};
+
+const formatDate = (dateString: string | undefined): string => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
 };
 
 const estimateAgeFromCategory = (category: string): number | null => {
@@ -94,10 +118,15 @@ interface Race {
   id: string;
   name: string;
   distance: number;
+  sport_type?: string;
+  slug?: string;
   event: {
     id: string;
     name: string;
     slug: string;
+    image_url?: string;
+    start_date?: string;
+    city?: string;
   };
 }
 
@@ -115,7 +144,8 @@ interface RaceStats {
 }
 
 export default function RaceResults() {
-  const { raceId } = useParams<{ raceId: string }>();
+  const { raceId, raceSlug } = useParams<{ raceId?: string; raceSlug?: string }>();
+  const identifier = raceId || raceSlug;
   const [race, setRace] = useState<Race | null>(null);
   const [results, setResults] = useState<Result[]>([]);
   const [filteredResults, setFilteredResults] = useState<Result[]>([]);
@@ -124,6 +154,8 @@ export default function RaceResults() {
   const [genderFilter, setGenderFilter] = useState<'all' | 'M' | 'F'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [categories, setCategories] = useState<string[]>([]);
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [selectedResult, setSelectedResult] = useState<Result | null>(null);
   const [stats, setStats] = useState<RaceStats>({
     total_finishers: 0,
     by_gender: { male: 0, female: 0 },
@@ -138,10 +170,10 @@ export default function RaceResults() {
   });
 
   useEffect(() => {
-    if (raceId) {
+    if (identifier) {
       loadResults();
     }
-  }, [raceId]);
+  }, [identifier]);
 
   useEffect(() => {
     filterResults();
@@ -155,14 +187,45 @@ export default function RaceResults() {
     try {
       setLoading(true);
 
-      // Charger la course
-      const { data: raceData, error: raceError } = await supabase
-        .from('races')
-        .select('id, name, distance, event:events(id, name, slug)')
-        .eq('id', raceId)
-        .single();
+      // Vérifier si c'est un UUID ou un slug
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier!);
+
+      let raceData;
+      let raceError;
+
+      if (isUUID) {
+        // Requête par UUID
+        const result = await supabase
+          .from('races')
+          .select('id, name, distance, sport_type, slug, event:events(id, name, slug, image_url, start_date, city)')
+          .eq('id', identifier)
+          .single();
+
+        raceData = result.data;
+        raceError = result.error;
+      } else {
+        // Requête par slug
+        const result = await supabase
+          .from('races')
+          .select('id, name, distance, sport_type, slug, event:events(id, name, slug, image_url, start_date, city)')
+          .eq('slug', identifier)
+          .single();
+
+        raceData = result.data;
+        raceError = result.error;
+
+        // Si trouvé par slug, rediriger vers l'URL slug pour SEO
+        if (raceData && isUUID === false) {
+          // L'URL est déjà bonne, ne rien faire
+        } else if (raceData && raceData.slug) {
+          // Rediriger de UUID vers slug
+          window.history.replaceState(null, '', `/races/${raceData.slug}/results`);
+        }
+      }
 
       if (raceError) throw raceError;
+      if (!raceData) throw new Error('Course non trouvée');
+
       setRace(raceData);
 
       // Charger les résultats avec pagination
@@ -172,10 +235,10 @@ export default function RaceResults() {
       let hasMore = true;
 
       while (hasMore) {
-        const { data: resultsData, error: resultsError } = await supabase
+        const { data: resultsData, error: resultsError} = await supabase
           .from('results')
           .select('*, athletes(birthdate)')
-          .eq('race_id', raceId)
+          .eq('race_id', raceData.id)
           .eq('status', 'finished')
           .order('overall_rank', { ascending: true })
           .range(from, from + pageSize - 1);
@@ -410,6 +473,31 @@ export default function RaceResults() {
     }
   };
 
+  const handleOpenCertificate = (result: Result) => {
+    setSelectedResult(result);
+    setShowCertificateModal(true);
+  };
+
+  const prepareResultData = (result: Result): ResultData => {
+    return {
+      athlete_name: result.athlete_name,
+      finish_time: result.finish_time,
+      chip_time: result.chip_time,
+      rank_scratch: result.overall_rank,
+      rank_gender: result.gender_rank,
+      rank_category: result.category_rank,
+      race_name: race?.name || '',
+      race_distance: race?.distance,
+      event_name: race?.event?.name || race?.name || '',
+      event_date: race?.date,
+      gender: result.gender,
+      category: result.category,
+      bib_number: result.bib_number,
+      club: result.club || result.custom_fields?.club,
+      nationality: result.nationality
+    };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -443,35 +531,158 @@ export default function RaceResults() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-pink-50/30 overflow-x-hidden">
       <Header />
 
-      {/* Event Header - Improved Design */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Event Header avec image de fond et overlay */}
+      <div className="relative min-h-[450px] overflow-hidden">
+        {/* Image de fond */}
+        <div className="absolute inset-0">
+          <div
+            className="w-full h-full bg-cover bg-center"
+            style={{
+              backgroundImage: `url(${race.event.image_url || getSportImage(race.sport_type || 'course')})`
+            }}
+          />
+          {/* Overlay avec gradient */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80"></div>
+        </div>
+
+        {/* Contenu en overlay */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-white">
           <Link
             to={`/events/${race.event.slug}`}
-            className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-pink-600 transition-colors mb-6 group"
+            className="inline-flex items-center gap-2 text-sm font-medium text-white/90 hover:text-white transition-colors mb-8 group backdrop-blur-sm bg-white/10 px-4 py-2 rounded-lg"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             Retour à l'événement
           </Link>
 
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">{race.name}</h1>
-              <div className="flex items-center gap-4 text-gray-600">
-                <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                  <Trophy className="w-4 h-4" />
-                  {race.distance} km
-                </span>
-                <span className="inline-flex items-center gap-2 px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-sm font-medium">
-                  <Users className="w-4 h-4" />
-                  {results.length} participant{results.length > 1 ? 's' : ''}
-                </span>
+          {/* En-tête avec titre et infos */}
+          <div className="mb-8">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold drop-shadow-2xl mb-4 leading-tight">
+              {race.name}
+            </h1>
+            <div className="flex flex-wrap items-center gap-3 text-base sm:text-lg">
+              <div className="flex items-center gap-2">
+                <Flag className="w-5 h-5 text-cyan-400" />
+                <span>{race.distance} km</span>
+              </div>
+              {race.event.start_date && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-pink-400" />
+                  <span>{formatDate(race.event.start_date)}</span>
+                </div>
+              )}
+              {race.event.city && (
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-cyan-400" />
+                  <span>{race.event.city}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Statistiques en overlay avec style caractéristiques */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="w-5 h-5 text-pink-400" />
+              <h2 className="text-xl sm:text-2xl font-bold drop-shadow-lg">Statistiques</h2>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                <div className="flex items-center gap-2 mb-1">
+                  <Trophy className="w-5 h-5 text-pink-400" />
+                  <div className="text-xs text-white/70 uppercase tracking-wide font-medium">Classés</div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold">{stats.total_finishers.toLocaleString()}</div>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                <div className="flex items-center gap-2 mb-1">
+                  <Users className="w-5 h-5 text-blue-400" />
+                  <div className="text-xs text-white/70 uppercase tracking-wide font-medium">Hommes</div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold">
+                  {stats.by_gender.male} <span className="text-lg text-white/70">({stats.total_finishers > 0 ? Math.round((stats.by_gender.male / stats.total_finishers) * 100) : 0}%)</span>
+                </div>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                <div className="flex items-center gap-2 mb-1">
+                  <Users className="w-5 h-5 text-pink-400" />
+                  <div className="text-xs text-white/70 uppercase tracking-wide font-medium">Femmes</div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold">
+                  {stats.by_gender.female} <span className="text-lg text-white/70">({stats.total_finishers > 0 ? Math.round((stats.by_gender.female / stats.total_finishers) * 100) : 0}%)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Statistiques détaillées - Grid 3x2 */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="w-5 h-5 text-green-400" />
+                  <div className="text-xs text-white/70 uppercase tracking-wide font-medium">Rapide</div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+                  {formatTime(stats.fastest_time)}
+                </div>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="w-5 h-5 text-blue-400" />
+                  <div className="text-xs text-white/70 uppercase tracking-wide font-medium">Médian</div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+                  {formatTime(stats.median_time)}
+                </div>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="w-5 h-5 text-orange-400" />
+                  <div className="text-xs text-white/70 uppercase tracking-wide font-medium">Lent</div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+                  {formatTime(stats.slowest_time)}
+                </div>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                <div className="flex items-center gap-2 mb-1">
+                  <User className="w-5 h-5 text-purple-400" />
+                  <div className="text-xs text-white/70 uppercase tracking-wide font-medium">Âge moyen</div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold">
+                  {stats.avg_age > 0 ? `${stats.avg_age} ans` : '-'}
+                </div>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                <div className="flex items-center gap-2 mb-1">
+                  <User className="w-5 h-5 text-blue-400" />
+                  <div className="text-xs text-white/70 uppercase tracking-wide font-medium">Âge moyen H</div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold">
+                  {stats.avg_age_male > 0 ? `${stats.avg_age_male} ans` : '-'}
+                </div>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-3 shadow-lg hover:bg-white/15 transition-all duration-200">
+                <div className="flex items-center gap-2 mb-1">
+                  <User className="w-5 h-5 text-pink-400" />
+                  <div className="text-xs text-white/70 uppercase tracking-wide font-medium">Âge moyen F</div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold">
+                  {stats.avg_age_female > 0 ? `${stats.avg_age_female} ans` : '-'}
+                </div>
               </div>
             </div>
 
             <button
               onClick={exportToPDF}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              className="w-full sm:w-auto bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-6 py-3 shadow-lg hover:bg-white/20 transition-all duration-200 flex items-center justify-center gap-2 font-semibold"
             >
               <FileDown className="w-5 h-5" />
               Exporter PDF
@@ -481,169 +692,7 @@ export default function RaceResults() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Statistiques de la course - Improved Design */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">
-          <div className="flex items-center space-x-3 mb-8">
-            <div className="p-2 bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl">
-              <TrendingUp className="w-6 h-6 text-white" />
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900">Statistiques</h2>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl p-3 text-white shadow-md">
-              <div className="flex items-center justify-between">
-                <Trophy className="w-6 h-6" />
-                <div className="text-right">
-                  <div className="text-xl font-bold leading-tight">{stats.total_finishers}</div>
-                  <div className="text-pink-100 text-xs font-medium">Classés</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-3 text-white shadow-md">
-              <div className="flex items-center justify-between">
-                <Users className="w-6 h-6" />
-                <div className="text-right">
-                  <div className="text-xl font-bold leading-tight">{stats.by_gender.male}</div>
-                  <div className="text-blue-100 text-xs font-medium">
-                    Hommes ({stats.total_finishers > 0 ? Math.round((stats.by_gender.male / stats.total_finishers) * 100) : 0}%)
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-pink-400 to-pink-500 rounded-xl p-3 text-white shadow-md">
-              <div className="flex items-center justify-between">
-                <Users className="w-6 h-6" />
-                <div className="text-right">
-                  <div className="text-xl font-bold leading-tight">{stats.by_gender.female}</div>
-                  <div className="text-pink-100 text-xs font-medium">
-                    Femmes ({stats.total_finishers > 0 ? Math.round((stats.by_gender.female / stats.total_finishers) * 100) : 0}%)
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-3 text-white shadow-md">
-              <div className="flex items-center justify-between">
-                <Award className="w-6 h-6" />
-                <div className="text-right">
-                  <div className="text-xl font-bold leading-tight">{Object.keys(stats.by_category).length}</div>
-                  <div className="text-green-100 text-xs font-medium">Catégories</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 border-t pt-6">
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3">
-              <div className="flex items-center justify-between">
-                <div className="p-1.5 bg-green-500 rounded-lg">
-                  <Clock className="w-4 h-4 text-white" />
-                </div>
-                <div className="text-right">
-                  <h3 className="font-semibold text-gray-600 text-xs uppercase tracking-wide">Rapide</h3>
-                  <span className="text-lg font-bold text-gray-900" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                    {formatTime(stats.fastest_time)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3">
-              <div className="flex items-center justify-between">
-                <div className="p-1.5 bg-blue-500 rounded-lg">
-                  <Clock className="w-4 h-4 text-white" />
-                </div>
-                <div className="text-right">
-                  <h3 className="font-semibold text-gray-600 text-xs uppercase tracking-wide">Médian</h3>
-                  <span className="text-lg font-bold text-gray-900" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                    {formatTime(stats.median_time)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-3">
-              <div className="flex items-center justify-between">
-                <div className="p-1.5 bg-orange-500 rounded-lg">
-                  <Clock className="w-4 h-4 text-white" />
-                </div>
-                <div className="text-right">
-                  <h3 className="font-semibold text-gray-600 text-xs uppercase tracking-wide">Lent</h3>
-                  <span className="text-lg font-bold text-gray-900" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                    {formatTime(stats.slowest_time)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3">
-              <div className="flex items-center justify-between">
-                <Award className="w-5 h-5 text-purple-500" />
-                <div className="text-right">
-                  <h3 className="font-semibold text-gray-600 text-xs uppercase tracking-wide">Top Cat</h3>
-                  <div className="text-xs space-y-0.5">
-                    {Object.entries(stats.by_category)
-                      .sort(([, a], [, b]) => b - a)
-                      .slice(0, 2)
-                      .map(([cat, count]) => (
-                        <div key={cat} className="text-gray-900 font-semibold">
-                          {cat}: {count}
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 border-t pt-6 mt-3">
-            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-3">
-              <div className="flex items-center justify-between">
-                <div className="p-1.5 bg-indigo-500 rounded-lg">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <div className="text-right">
-                  <h3 className="font-semibold text-gray-600 text-xs uppercase tracking-wide">Âge moyen</h3>
-                  <span className="text-lg font-bold text-gray-900">
-                    {stats.avg_age > 0 ? `${stats.avg_age} ans` : '-'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3">
-              <div className="flex items-center justify-between">
-                <div className="p-1.5 bg-blue-500 rounded-lg">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <div className="text-right">
-                  <h3 className="font-semibold text-gray-600 text-xs uppercase tracking-wide">Âge moyen H</h3>
-                  <span className="text-lg font-bold text-gray-900">
-                    {stats.avg_age_male > 0 ? `${stats.avg_age_male} ans` : '-'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-3">
-              <div className="flex items-center justify-between">
-                <div className="p-1.5 bg-pink-500 rounded-lg">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <div className="text-right">
-                  <h3 className="font-semibold text-gray-600 text-xs uppercase tracking-wide">Âge moyen F</h3>
-                  <span className="text-lg font-bold text-gray-900">
-                    {stats.avg_age_female > 0 ? `${stats.avg_age_female} ans` : '-'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* Podium - Improved Design */}
+        {/* Podium - Style avec angle coupé */}
         {filteredResults.length >= 3 && (
           <div className="mb-8">
             {genderFilter !== 'all' && (
@@ -651,72 +700,83 @@ export default function RaceResults() {
                 Podium {genderFilter === 'M' ? 'Hommes' : 'Femmes'}
               </h3>
             )}
-            <div className="grid grid-cols-3 gap-2 md:gap-4 items-end">
+            <div className="grid grid-cols-3 gap-2 md:gap-4 items-end max-w-5xl mx-auto">
               {[1, 0, 2].map((offset, idx) => {
                 const result = filteredResults[offset];
                 if (!result) return null;
 
-                const heights = ['h-36 md:h-44', 'h-44 md:h-52', 'h-36 md:h-44'];
+                const heights = ['h-64 md:h-80', 'h-72 md:h-96', 'h-64 md:h-80'];
                 const positions = ['2', '1', '3'];
                 const backgroundImages = [
                   'https://fgstscztsighabpzzzix.supabase.co/storage/v1/object/public/email-assets/1762539005723_course_piste_stade.jpeg',
                   'https://fgstscztsighabpzzzix.supabase.co/storage/v1/object/public/email-assets/1762539049067_tour_eiffel_coureur.jpeg',
                   'https://fgstscztsighabpzzzix.supabase.co/storage/v1/object/public/email-assets/1762539210145_course_a_pied_masse_deux.jpeg'
                 ];
-                const medalColors = [
-                  'bg-gray-100 text-gray-800 border-gray-300',
-                  'bg-yellow-100 text-yellow-800 border-yellow-400',
-                  'bg-orange-100 text-orange-800 border-orange-400'
+                const numberColors = [
+                  'text-white',
+                  'text-white',
+                  'text-white'
                 ];
 
                 return (
-                  <div key={result.id} className={`${heights[idx]} relative overflow-hidden rounded-xl md:rounded-2xl shadow-xl transition-all duration-300 hover:scale-105`}>
+                  <div
+                    key={result.id}
+                    className={`${heights[idx]} relative transition-all duration-300 hover:scale-105 shadow-xl overflow-hidden`}
+                    style={{
+                      clipPath: 'polygon(0 20%, 100% 0, 100% 100%, 0 100%)'
+                    }}
+                  >
                     <div
                       className="absolute inset-0"
                       style={{
                         backgroundImage: `url(${backgroundImages[idx]})`,
                         backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        opacity: 0.4
+                        backgroundPosition: 'center'
                       }}
                     />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-2 md:p-4">
-                      <div className={`absolute top-1 md:top-2 right-1 md:right-2 ${medalColors[idx]} rounded-full w-8 h-8 md:w-10 md:h-10 flex items-center justify-center shadow-lg border-2`}>
-                        <span className="text-base md:text-xl font-black">{positions[idx]}</span>
+                    <div className="absolute inset-0 bg-black/30" />
+                    <div className="absolute inset-0">
+                      <div className="absolute top-8 md:top-12 left-1/2 transform -translate-x-1/2 text-6xl md:text-9xl font-black opacity-60">
+                        <span className={numberColors[idx]}>{positions[idx]}</span>
                       </div>
-                      <div className="flex items-center justify-center gap-1 md:gap-2 mb-2 md:mb-3">
-                        {(() => {
-                          const nat = result.custom_fields?.nationality || result.custom_fields?.nation;
-                          const code = nat ? getCountryCode(nat) : '';
-                          return code ? (
-                            <img
-                              src={`https://flagcdn.com/28x21/${code}.png`}
-                              srcSet={`https://flagcdn.com/56x42/${code}.png 2x`}
-                              width="28"
-                              height="21"
-                              alt={nat}
-                              title={nat}
-                              className="inline-block rounded shadow-lg w-5 h-4 md:w-7 md:h-5"
-                            />
-                          ) : null;
+                      <div className="absolute inset-0 flex flex-col items-center justify-end p-3 md:p-6 pb-4 md:pb-8">
+                        <div className="flex items-center gap-2 mb-2 md:mb-3">
+                          {(() => {
+                            const nationality = result.custom_fields?.nationality || result.nationality;
+                            const countryCode = nationality ? getCountryCode(nationality) : null;
+                            return countryCode ? (
+                              <div className="relative w-6 h-6 md:w-8 md:h-8 rounded-full overflow-hidden border-2 border-white shadow-lg flex-shrink-0">
+                                <img
+                                  src={`https://flagcdn.com/w40/${countryCode}.png`}
+                                  alt={nationality}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            ) : null;
+                          })()}
+                          <p className="font-bold text-sm md:text-xl text-white text-center leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                            {result.athlete_name}
+                          </p>
+                        </div>
+                        <p className="text-2xl md:text-4xl font-black text-white mb-1 md:mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '0.02em' }}>
+                          {formatTime(result.finish_time)}
+                        </p>
+                        {race && race.distance > 0 && (() => {
+                          const timeInSeconds = timeToSeconds(result.finish_time);
+                          if (timeInSeconds > 0) {
+                            const speedKmh = (race.distance / (timeInSeconds / 3600)).toFixed(2);
+                            return (
+                              <p className="font-semibold text-xs md:text-base text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                                {speedKmh} km/h
+                              </p>
+                            );
+                          }
+                          return null;
                         })()}
                       </div>
-                      <p className="font-bold text-sm md:text-2xl text-white text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-tight px-1 md:px-2">{result.athlete_name}</p>
-                      <p className="text-xl md:text-4xl font-black text-white mt-2 md:mt-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '0.05em' }}>
-                        {formatTime(result.finish_time)}
-                      </p>
-                      {race && race.distance > 0 && (() => {
-                        const timeInSeconds = timeToSeconds(result.finish_time);
-                        if (timeInSeconds > 0) {
-                          const speedKmh = (race.distance / (timeInSeconds / 3600)).toFixed(2);
-                          return (
-                            <p className="font-bold text-sm md:text-lg text-white mt-1 md:mt-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                              {speedKmh} km/h
-                            </p>
-                          );
-                        }
-                        return null;
-                      })()}
                     </div>
                   </div>
                 );
@@ -831,14 +891,24 @@ export default function RaceResults() {
                           {result.athlete_name}
                         </span>
                         {code && (
-                          <img
-                            src={`https://flagcdn.com/24x18/${code}.png`}
-                            width="24"
-                            height="18"
-                            alt={nat}
-                            className="rounded shadow-sm flex-shrink-0"
-                          />
+                          <div className="relative w-6 h-6 rounded-full overflow-hidden border-2 border-gray-300 shadow-md transition-all duration-300 hover:scale-110 hover:border-pink-400 flex-shrink-0">
+                            <img
+                              src={`https://flagcdn.com/w40/${code}.png`}
+                              alt={nat}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
                         )}
+                        <button
+                          onClick={() => handleOpenCertificate(result)}
+                          className="p-1.5 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white rounded-lg hover:from-yellow-500 hover:to-yellow-600 transition-all duration-300 shadow-md hover:shadow-lg flex-shrink-0"
+                          title="Obtenir mon diplôme"
+                        >
+                          <Award className="w-4 h-4" />
+                        </button>
                       </div>
                       {(result.club || result.custom_fields?.club) && (
                         <div className="text-xs text-gray-600 mb-1 truncate">
@@ -933,6 +1003,9 @@ export default function RaceResults() {
                   <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-tight w-20">
                     Clt Cat
                   </th>
+                  <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-tight w-16">
+                    Diplôme
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
@@ -976,14 +1049,19 @@ export default function RaceResults() {
                       </td>
                       <td className="px-2 py-2 text-center">
                         {code ? (
-                          <img
-                            src={`https://flagcdn.com/24x18/${code}.png`}
-                            width="24"
-                            height="18"
-                            alt={nat}
-                            title={nat}
-                            className="inline-block rounded shadow-sm"
-                          />
+                          <div className="inline-flex justify-center">
+                            <div className="relative w-7 h-7 rounded-full overflow-hidden border-2 border-gray-300 shadow-md transition-all duration-300 hover:scale-110 hover:border-pink-400">
+                              <img
+                                src={`https://flagcdn.com/w40/${code}.png`}
+                                alt={nat}
+                                title={nat}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          </div>
                         ) : nat ? (
                           <span className="text-xs text-gray-600" title={nat}>{nat.slice(0, 3)}</span>
                         ) : (
@@ -1040,6 +1118,15 @@ export default function RaceResults() {
                           {result.category_rank}
                         </span>
                       </td>
+                      <td className="px-2 py-2 text-center">
+                        <button
+                          onClick={() => handleOpenCertificate(result)}
+                          className="inline-flex items-center justify-center p-1.5 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white rounded-lg hover:from-yellow-500 hover:to-yellow-600 transition-all duration-300 shadow-md hover:shadow-lg"
+                          title="Obtenir mon diplôme"
+                        >
+                          <Award className="w-4 h-4" />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -1057,6 +1144,19 @@ export default function RaceResults() {
       </div>
 
       <Footer />
+
+      {/* Modal de diplôme */}
+      {showCertificateModal && selectedResult && raceId && (
+        <CertificateShareModal
+          resultId={selectedResult.id}
+          resultData={prepareResultData(selectedResult)}
+          raceId={raceId}
+          onClose={() => {
+            setShowCertificateModal(false);
+            setSelectedResult(null);
+          }}
+        />
+      )}
     </div>
   );
 }

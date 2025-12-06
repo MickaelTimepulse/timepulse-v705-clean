@@ -49,8 +49,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await loadUserPermissions(metadata.admin_id);
             console.log('[AuthContext] ✅ User restored from Supabase Auth');
           }
-        } else {
-          console.log('[AuthContext] No Supabase Auth session found');
         }
       } catch (error) {
         console.error('[AuthContext] Error checking auth:', error);

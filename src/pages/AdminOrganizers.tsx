@@ -52,10 +52,23 @@ export default function AdminOrganizers() {
   async function loadOrganizers() {
     try {
       setLoading(true);
+      console.log('[AdminOrganizers] Loading organizers...');
+
       const { data, error } = await supabase
         .rpc('admin_get_all_organizers');
 
       if (error) throw error;
+
+      console.log('[AdminOrganizers] Loaded organizers:', data?.length, 'records');
+      if (data && data.length > 0) {
+        console.log('[AdminOrganizers] Sample organizer data:', {
+          id: data[0].id,
+          name: data[0].organization_name,
+          full_address: data[0].full_address,
+          website_url: data[0].website_url,
+          facebook_url: data[0].facebook_url
+        });
+      }
 
       setOrganizers(data || []);
     } catch (error) {
@@ -64,6 +77,18 @@ export default function AdminOrganizers() {
       setLoading(false);
     }
   }
+
+  const filteredOrganizers = organizers.filter((org) => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      org.organization_name?.toLowerCase().includes(search) ||
+      org.email?.toLowerCase().includes(search) ||
+      org.contact_name?.toLowerCase().includes(search) ||
+      org.city?.toLowerCase().includes(search) ||
+      org.siret?.toLowerCase().includes(search)
+    );
+  });
 
   async function handleCreateOrganizer(e: React.FormEvent) {
     e.preventDefault();
@@ -204,6 +229,17 @@ export default function AdminOrganizers() {
 
   async function handleEditOrganizer(org: any) {
     try {
+      console.log('[AdminOrganizers] Opening edit modal for organizer:', org);
+      console.log('[AdminOrganizers] Organizer data:', {
+        full_address: org.full_address,
+        city: org.city,
+        postal_code: org.postal_code,
+        country: org.country,
+        website_url: org.website_url,
+        facebook_url: org.facebook_url,
+        instagram_url: org.instagram_url
+      });
+
       setEditingOrganizer(org);
       setEditFormData({ ...org });
 
@@ -230,8 +266,22 @@ export default function AdminOrganizers() {
 
   async function handleUpdateOrganizer(e: React.FormEvent) {
     e.preventDefault();
+
+    // Check authentication
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      alert('Session expirée. Veuillez vous reconnecter.');
+      window.location.href = '/admin/login';
+      return;
+    }
+
+    if (!confirm('Voulez-vous vraiment enregistrer ces modifications ?')) {
+      return;
+    }
+
     try {
-      const { error: orgError } = await supabase
+
+      const { data: orgData, error: orgError } = await supabase
         .from('organizers')
         .update({
           organization_name: editFormData.organization_name,
@@ -250,16 +300,23 @@ export default function AdminOrganizers() {
           public_description: editFormData.public_description,
           updated_at: new Date().toISOString()
         })
-        .eq('id', editingOrganizer.id);
+        .eq('id', editingOrganizer.id)
+        .select();
 
-      if (orgError) throw orgError;
-
+      if (orgError) {
+        console.error('Error updating organizer:', orgError);
+        alert(`Erreur lors de la mise à jour: ${orgError.message}`);
+        throw orgError;
+      }
       const { error: delFedError } = await supabase
         .from('organizer_federations')
         .delete()
         .eq('organizer_id', editingOrganizer.id);
 
-      if (delFedError) console.error('Error deleting federations:', delFedError);
+      if (delFedError) {
+        console.error('Error deleting federations:', delFedError);
+        throw delFedError;
+      }
 
       if (selectedFederations.length > 0) {
         const { error: fedError } = await supabase
@@ -269,9 +326,13 @@ export default function AdminOrganizers() {
               organizer_id: editingOrganizer.id,
               federation_id: fedId
             }))
-          );
+          )
+          .select();
 
-        if (fedError) throw fedError;
+        if (fedError) {
+          console.error('Error inserting federations:', fedError);
+          throw fedError;
+        }
       }
 
       if (bankDetails && (bankDetails.iban || bankDetails.account_holder_name)) {
@@ -311,13 +372,16 @@ export default function AdminOrganizers() {
         }
       }
 
+      console.log('[AdminOrganizers] ===== UPDATE RÉUSSI =====');
       alert('Organisateur mis à jour avec succès!');
       setShowEditModal(false);
       setEditingOrganizer(null);
       setBankDetails(null);
       setSelectedFederations([]);
-      loadOrganizers();
+      await loadOrganizers();
+      console.log('[AdminOrganizers] ===== ORGANIZERS RECHARGÉS =====');
     } catch (error: any) {
+      console.error('[AdminOrganizers] ===== ERREUR UPDATE =====');
       console.error('Error updating organizer:', error);
       alert('Erreur: ' + error.message);
     }
@@ -389,7 +453,7 @@ export default function AdminOrganizers() {
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center space-x-4 mb-6">
+          <div className="space-y-3 mb-6">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
@@ -400,6 +464,19 @@ export default function AdminOrganizers() {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
               />
             </div>
+            {!loading && (
+              <div className="text-sm text-gray-600">
+                {searchTerm ? (
+                  <>
+                    <span className="font-medium text-pink-600">{filteredOrganizers.length}</span> résultat{filteredOrganizers.length !== 1 ? 's' : ''} trouvé{filteredOrganizers.length !== 1 ? 's' : ''} sur <span className="font-medium">{organizers.length}</span> organisateur{organizers.length !== 1 ? 's' : ''}
+                  </>
+                ) : (
+                  <>
+                    <span className="font-medium">{organizers.length}</span> organisateur{organizers.length !== 1 ? 's' : ''} au total
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="overflow-x-auto">
@@ -430,13 +507,13 @@ export default function AdminOrganizers() {
                       Chargement...
                     </td>
                   </tr>
-                ) : organizers.length === 0 ? (
+                ) : filteredOrganizers.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                      Aucun organisateur trouvé
+                      {searchTerm ? 'Aucun organisateur ne correspond à votre recherche' : 'Aucun organisateur trouvé'}
                     </td>
                   </tr>
-                ) : organizers.map((org) => (
+                ) : filteredOrganizers.map((org) => (
                   <tr key={org.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -454,10 +531,12 @@ export default function AdminOrganizers() {
                         <Mail className="w-4 h-4 mr-2 text-gray-400" />
                         {org.email}
                       </div>
-                      <div className="text-sm text-gray-500 flex items-center mt-1">
-                        <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                        {org.phone}
-                      </div>
+                      {org.mobile_phone && org.mobile_phone.trim() && (
+                        <div className="text-sm text-gray-500 flex items-center mt-1">
+                          <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                          {org.mobile_phone}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-medium text-gray-900">{org.event_count || 0}</span>
@@ -696,10 +775,9 @@ export default function AdminOrganizers() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                       >
                         <option value="association">Association</option>
-                        <option value="club">Club</option>
-                        <option value="federation">Fédération</option>
+                        <option value="collectivity">Collectivité</option>
                         <option value="company">Entreprise</option>
-                        <option value="municipality">Municipalité</option>
+                        <option value="individual">Particulier</option>
                       </select>
                     </div>
                   </div>

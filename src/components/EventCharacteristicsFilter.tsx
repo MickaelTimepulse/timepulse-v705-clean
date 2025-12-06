@@ -99,10 +99,10 @@ export default function EventCharacteristicsFilter({
         onClick={() => setIsOpen(!isOpen)}
         className={`
           inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium
-          transition-all border-2
+          transition-all border-2 shadow-sm
           ${selectedFilters.length > 0
             ? 'bg-blue-50 border-blue-500 text-blue-700'
-            : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
+            : 'bg-white border-blue-300 text-gray-700 hover:border-blue-400'
           }
         `}
       >
