@@ -4,30 +4,9 @@
   "framework": "vite",
   "cleanUrls": true,
   "trailingSlash": false,
-  "routes": [
-    {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/dossardsite.png",
-      "dest": "/dossardsite.png"
-    },
-    {
-      "src": "/(.*\\.(png|jpg|jpeg|gif|svg|ico|json|css|js|woff|woff2|ttf|eot))",
-      "dest": "/$1"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!.*\\.).*)",
       "destination": "/index.html"
     }
   ],
