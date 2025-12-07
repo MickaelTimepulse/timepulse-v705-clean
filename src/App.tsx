@@ -136,7 +136,6 @@ function App() {
             <Route path="/events/:eventId/register" element={<PublicRegistration />} />
             <Route path="/events/:eventSlug/races/:raceId/entries" element={<RaceEntriesList />} />
             <Route path="/races/:raceId/results" element={<RaceResults />} />
-            <Route path="/resultats/:raceSlug" element={<RaceResults />} />
             <Route path="/events/:eventId/bib-exchange" element={<BibExchange />} />
             <Route path="/events/:eventId/bib-exchange/buy/:listingId" element={<BuyBib />} />
             <Route path="/events/:eventId/carpooling" element={<CarpoolingOffers />} />
