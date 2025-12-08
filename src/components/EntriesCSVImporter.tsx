@@ -526,10 +526,17 @@ export default function EntriesCSVImporter({
               {preview.length > 0 && (
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                    <h5 className="font-semibold text-gray-900 flex items-center space-x-2">
-                      <FileText className="w-4 h-4" />
-                      <span>Aperçu des données (5 premières lignes)</span>
-                    </h5>
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-semibold text-gray-900 flex items-center space-x-2">
+                        <FileText className="w-4 h-4" />
+                        <span>Aperçu des données (5 premières lignes)</span>
+                      </h5>
+                      <div className="text-sm">
+                        <span className="font-medium text-pink-600">{csvLines.length - 1}</span>
+                        <span className="text-gray-600"> lignes de données détectées</span>
+                        <span className="text-gray-400 ml-2">({csvLines.length} lignes totales avec en-tête)</span>
+                      </div>
+                    </div>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">

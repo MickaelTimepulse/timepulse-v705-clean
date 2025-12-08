@@ -2,11 +2,11 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "cleanUrls": true,
+  "cleanUrls": false,
   "trailingSlash": false,
   "rewrites": [
     {
-      "source": "/((?!.*\\.).*)",
+      "source": "/((?!assets/).*)",
       "destination": "/index.html"
     }
   ],

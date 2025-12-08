@@ -116,7 +116,8 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
           entry_payments (payment_status, amount_paid)
         `)
         .eq('event_id', eventId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(10000);
 
       if (error) throw error;
       setEntries(data || []);

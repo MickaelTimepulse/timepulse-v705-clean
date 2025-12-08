@@ -90,13 +90,13 @@ export async function generateCertificate(
       img.src = template.template_image_url;
     });
 
-    // Définir les dimensions du canvas (format adapté aux réseaux sociaux)
-    // Format 1080x1080 (Instagram) ou 1200x630 (Facebook/Twitter)
+    // Définir les dimensions du canvas selon l'image originale
+    // Utiliser les dimensions exactes de l'image pour préserver le ratio
     canvas.width = img.width || 1080;
     canvas.height = img.height || 1080;
 
-    // Dessiner l'image de fond
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    // Dessiner l'image de fond (sans étirer, en préservant les dimensions)
+    ctx.drawImage(img, 0, 0);
 
     // Appliquer les variables
     const variables = template.variables_config as CertificateVariable[];

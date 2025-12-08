@@ -255,7 +255,8 @@ export default function AdminTimepulseImport() {
       const { data: entries } = await supabase
         .from('entries')
         .select('id, athlete_id, athletes!inner(birthdate, first_name, last_name)')
-        .eq('race_id', raceId);
+        .eq('race_id', raceId)
+        .limit(10000);
 
       if (!entries || entries.length === 0) {
         console.log('ℹ️ Aucune entrée trouvée pour recalculer');
@@ -301,10 +302,6 @@ export default function AdminTimepulseImport() {
     setSuccess(null);
 
     try {
-      let imported = 0;
-      let skipped = 0;
-      const errors: string[] = [];
-
       // Récupérer l'ID de l'admin connecté
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -324,366 +321,99 @@ export default function AdminTimepulseImport() {
         return;
       }
 
-      // Récupérer les options disponibles pour cette course avec leurs choix
-      const { data: raceOptions, error: optionsError } = await supabase
-        .from('race_options')
-        .select('id, label, type, price_cents')
-        .eq('race_id', selectedRaceId)
-        .eq('active', true);
-
-      if (optionsError) {
-        console.error('Erreur chargement options:', optionsError);
-      }
-
-      const optionsMap = new Map(raceOptions?.map(opt => [opt.label.toLowerCase(), opt]) || []);
-
       const totalRows = previewData.rows.length;
       setImportProgress({ current: 0, total: totalRows });
 
-      // Délai initial réduit pour permettre le rendu de la barre
-      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log(`🚀 Import en batch de ${totalRows} participants...`);
 
-      for (let i = 0; i < previewData.rows.length; i++) {
-        const row = previewData.rows[i];
+      // Préparer les données pour l'import en batch
+      const participants = previewData.rows.map((row, index) => {
+        const email = row.email || row.Email || row.EMAIL || row.e_mail || row.E_mail ||
+                      row['E-mail'] || row['e-mail'] || row.mail || row.Mail || '';
+        const firstName = row.first_name || row.prenom || row.Prénom || row['Prénom'] || '';
+        const lastName = row.last_name || row.nom || row.Nom || row['Nom'] || '';
+        const birthdateRaw = row.birth_date || row.birthdate || row.naissance || row['Date de naissance'] || '';
+        const birthdate = convertFrenchDateToISO(birthdateRaw);
 
-        // Mise à jour de la progression
-        setImportProgress({ current: i + 1, total: totalRows });
+        const genderValue = (row.gender || row.sexe || row.Sexe || '').toString().toUpperCase();
+        const gender = genderValue === 'M' || genderValue === 'H' || genderValue === 'MALE' || genderValue === 'HOMME' ? 'M' : 'F';
 
-        // Log progression tous les 50 enregistrements (au lieu de 10)
-        if (i % 50 === 0 || i === totalRows - 1) {
-          console.log(`📊 Import: ${i + 1}/${totalRows} (${Math.round(((i + 1) / totalRows) * 100)}%)`);
-        }
+        const certDateRaw = row.medical_certificate_date || row.date_certificat || row['Date Certificat'] || row.certificat_medical || '';
+        const certDate = convertFrenchDateToISO(certDateRaw);
 
-        // Forcer le rendu uniquement tous les 20 enregistrements (au lieu de 5)
-        if (i % 20 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 10));
-        }
+        const ppsDateRaw = row.pps_valid_until || row.pps_date || row['Date validité PPS'] || '';
+        const ppsDate = convertFrenchDateToISO(ppsDateRaw);
 
-        try {
-          // Extraire les données essentielles
-          const email = row.email || row.Email || row.EMAIL || row.e_mail || row.E_mail ||
-                        row['E-mail'] || row['e-mail'] || row.mail || row.Mail || '';
+        const ppsNumberRaw = emptyToNull(row.pps_number || row.pps || row.num_pps || row['Numéro PPS'] || row.numero_pps);
+        const ppsNumber = (ppsNumberRaw && ppsDate) ? ppsNumberRaw : null;
 
-          if (!email) {
-            // Afficher les clés disponibles pour debug
-            console.log('Colonnes disponibles:', Object.keys(row).slice(0, 10));
-            errors.push(`Email manquant - Colonnes: ${Object.keys(row).slice(0, 5).join(', ')}`);
-            continue;
-          }
+        let notesText = '';
+        if (certDate) notesText += `Certificat médical: ${certDate}\n`;
+        if (row.team_name || row.equipe) notesText += `Équipe: ${row.team_name || row.equipe}\n`;
+        if (row.notes || row.remarques) notesText += row.notes || row.remarques;
 
-          // Extraire nom, prénom et date de naissance AVANT de vérifier les doublons
-          const firstName = row.first_name || row.prenom || row.Prénom || row['Prénom'] || '';
-          const lastName = row.last_name || row.nom || row.Nom || row['Nom'] || '';
-          const birthdateRaw = row.birth_date || row.birthdate || row.naissance || row['Date de naissance'] || '';
-          const birthdate = convertFrenchDateToISO(birthdateRaw);
+        return {
+          line_number: index + 1,
+          email: email.toLowerCase().trim(),
+          first_name: firstName,
+          last_name: lastName,
+          gender: gender,
+          birthdate: birthdate,
+          nationality: row.nationality || row.nationalite || 'FRA',
+          phone: emptyToNull(row.phone || row.mobile || row.telephone),
+          city: emptyToNull(row.city || row.ville),
+          postal_code: emptyToNull(row.postal_code || row.cp),
+          license_number: emptyToNull(row.license_number || row.licence),
+          license_club: emptyToNull(row.license_club || row.club),
+          license_type: emptyToNull(row.license_type || row.type_licence),
+          federation: emptyToNull(row.federation),
+          league: emptyToNull(row.league || row.ligue),
+          club_number: emptyToNull(row.club_number || row.num_club),
+          pps_number: ppsNumber,
+          pps_valid_until: ppsNumber ? ppsDate : null,
+          category: row.category || row.categorie || 'SE',
+          bib_number: row.bib_number || row.num_dossard || row.dossard || null,
+          notes: notesText.trim() || null
+        };
+      });
 
-          if (!firstName || !lastName) {
-            errors.push(`${email}: Nom ou prénom manquant`);
-            continue;
-          }
+      // Appeler la fonction d'import en batch
+      const { data: result, error: importError } = await supabase
+        .rpc('bulk_import_participants', {
+          p_event_id: selectedEventId,
+          p_race_id: selectedRaceId,
+          p_organizer_id: event.organizer_id,
+          p_created_by: user.id,
+          p_participants: participants
+        });
 
-          // OPTIMISATION: Chercher d'abord si l'athlète existe déjà (nom + prénom + date de naissance)
-          // Cela évite de créer des doublons d'athlètes et vérifie l'inscription
-          const { data: existingAthletes, error: searchError } = await supabase
-            .from('athletes')
-            .select('id, email, first_name, last_name, birthdate')
-            .ilike('first_name', firstName)
-            .ilike('last_name', lastName);
-
-          if (searchError) {
-            console.error('Error searching athletes:', searchError);
-          }
-
-          let athleteId: string | null = null;
-          let shouldSkip = false;
-
-          // Si on trouve des athlètes correspondants
-          if (existingAthletes && existingAthletes.length > 0) {
-            // Filtrer pour trouver une correspondance exacte (nom + prénom + date de naissance)
-            for (const athlete of existingAthletes) {
-              const sameFirstName = athlete.first_name?.toLowerCase().trim() === firstName.toLowerCase().trim();
-              const sameLastName = athlete.last_name?.toLowerCase().trim() === lastName.toLowerCase().trim();
-              const sameBirthdate = athlete.birthdate === birthdate;
-
-              if (sameFirstName && sameLastName && sameBirthdate) {
-                // Athlète trouvé ! Vérifier s'il est déjà inscrit à cette course
-                const { data: existingEntry, error: entryError } = await supabase
-                  .from('entries')
-                  .select('id')
-                  .eq('race_id', selectedRaceId)
-                  .eq('athlete_id', athlete.id)
-                  .maybeSingle();
-
-                if (entryError) {
-                  console.error('Error checking entry:', entryError);
-                }
-
-                if (existingEntry) {
-                  console.log(`⏭️ Doublon ignoré: ${firstName} ${lastName} (${birthdate}) - déjà inscrit avec ID ${athlete.id}`);
-                  shouldSkip = true;
-                  break;
-                }
-
-                // L'athlète existe mais n'est pas inscrit, on le réutilise
-                console.log(`🔄 Réutilisation athlète existant: ${firstName} ${lastName} (ID: ${athlete.id})`);
-                athleteId = athlete.id;
-                break;
-              }
-            }
-          }
-
-          if (shouldSkip) {
-            skipped++;
-            continue;
-          }
-
-          // Préparer les données de l'athlète
-          const genderValue = (row.gender || row.sexe || row.Sexe || '').toString().toUpperCase();
-          const gender = genderValue === 'M' || genderValue === 'H' || genderValue === 'MALE' || genderValue === 'HOMME' ? 'M' : 'F';
-
-          // Convertir la date du certificat médical
-          const certDateRaw = row.medical_certificate_date || row.date_certificat || row['Date Certificat'] || row.certificat_medical || '';
-          const certDate = convertFrenchDateToISO(certDateRaw);
-
-          // Convertir la date de validité PPS
-          const ppsDateRaw = row.pps_valid_until || row.pps_date || row['Date validité PPS'] || '';
-          const ppsDate = convertFrenchDateToISO(ppsDateRaw);
-
-          // Nettoyer le numéro PPS - Si pas de date, on ignore le numéro (contrainte PPS)
-          const ppsNumberRaw = emptyToNull(row.pps_number || row.pps || row.num_pps || row['Numéro PPS'] || row.numero_pps);
-          const ppsNumber = (ppsNumberRaw && ppsDate) ? ppsNumberRaw : null;
-
-          const athleteData = {
-            email: email,
-            first_name: firstName,
-            last_name: lastName,
-            gender: gender,
-            birthdate: birthdate || null,
-            nationality: row.nationality || row.nationalite || row.nationalité || row.Nationalité || row['Nationalité'] || 'FRA',
-            phone: emptyToNull(row.phone || row.mobile || row.Mobile || row.telephone || row.Téléphone || row['Téléphone'] || row.tel),
-            city: emptyToNull(row.city || row.ville || row.Ville || row['Ville']),
-            postal_code: emptyToNull(row.postal_code || row.zip || row.code_postal || row.CP || row.cp || row['CP']),
-            license_number: emptyToNull(row.license_number || row.num_licence || row.licence || row.Licence || row['N° de licence']),
-            license_club: emptyToNull(row.license_club || row.club || row.Club || row['Club/Asso'] || row.club_licence),
-            license_type: emptyToNull(row.license_type || row.type_licence || row['Type de licence']),
-            federation: emptyToNull(row.federation || row.fédération || row.Fédération),
-            league: emptyToNull(row.league || row.ligue || row.Ligue || row['Ligue du club']),
-            club_number: emptyToNull(row.club_number || row.num_club || row.numero_club || row['N° du club']),
-            pps_number: ppsNumber,
-            pps_valid_until: ppsNumber ? ppsDate : null, // Cohérence : les deux ou aucun
-            medical_certificate_date: certDate || null,
-          };
-
-          // Informations d'équipe (si course par équipe)
-          const teamData = {
-            team_name: row.team_name || row.equipe || row.Equipe || row.Équipe || row['Equipe'] || row.nom_equipe || null,
-            team_type: row.team_type || row['Type équipe'] || row.type_equipe || row.team_gender || null,
-          };
-
-          // Créer un nouvel athlète (si pas déjà trouvé par nom+prénom+date)
-          // IMPORTANT: On permet plusieurs athlètes avec le même email car une personne peut
-          // inscrire plusieurs participants (ex: parent inscrivant ses enfants)
-          if (!athleteId) {
-            // Créer un nouvel athlète
-            console.log(`➕ Création nouvel athlète: ${email} - ${firstName} ${lastName} (${birthdate})`);
-            const { data: newAthlete, error: athleteError } = await supabase
-              .from('athletes')
-              .insert({
-                email: athleteData.email,
-                first_name: athleteData.first_name,
-                last_name: athleteData.last_name,
-                gender: athleteData.gender,
-                birthdate: athleteData.birthdate,
-                nationality: athleteData.nationality,
-                phone: athleteData.phone,
-                city: athleteData.city,
-                postal_code: athleteData.postal_code,
-                license_number: athleteData.license_number,
-                license_club: athleteData.license_club,
-                license_type: athleteData.license_type,
-                federation: athleteData.federation,
-                league: athleteData.league,
-                club_number: athleteData.club_number,
-                pps_number: athleteData.pps_number,
-                pps_valid_until: athleteData.pps_valid_until,
-              })
-              .select()
-              .single();
-
-            if (athleteError) {
-              errors.push(`${athleteData.email}: Erreur création athlète - ${athleteError.message}`);
-              continue;
-            }
-            athleteId = newAthlete.id;
-          }
-
-          // Préparer les notes avec les informations d'équipe et certificat médical
-          let notesText = '';
-          if (athleteData.medical_certificate_date) {
-            notesText += `Certificat médical: ${athleteData.medical_certificate_date}\n`;
-          }
-          if (teamData.team_name) {
-            notesText += `Équipe: ${teamData.team_name}\n`;
-          }
-          if (teamData.team_type) {
-            const teamTypeLabels: { [key: string]: string } = {
-              'M': 'Équipe Hommes',
-              'F': 'Équipe Femmes',
-              'X': 'Équipe Mixte',
-              'male': 'Équipe Hommes',
-              'female': 'Équipe Femmes',
-              'mixed': 'Équipe Mixte',
-              'homme': 'Équipe Hommes',
-              'femme': 'Équipe Femmes',
-              'mixte': 'Équipe Mixte',
-            };
-            const teamTypeLabel = teamTypeLabels[teamData.team_type.toLowerCase()] || `Type: ${teamData.team_type}`;
-            notesText += `${teamTypeLabel}\n`;
-          }
-          if (row.notes || row.remarques || row.commentaires) {
-            notesText += row.notes || row.remarques || row.commentaires;
-          }
-
-          // Insérer l'inscription
-          const entryAmount = parseFloat(row.amount || row.tarif || row['Montant payé'] || row.tarif_inscription || row.montant || '0');
-          const { data: newEntry, error: insertError } = await supabase
-            .from('entries')
-            .insert({
-              athlete_id: athleteId,
-              event_id: selectedEventId,
-              race_id: selectedRaceId,
-              organizer_id: event.organizer_id,
-              category: row.category || row.categorie || 'SE',
-              source: 'bulk_import',
-              status: 'confirmed',
-              bib_number: row.bib_number || row.num_dossard || row['N° dossard'] || row.dossard ? parseInt(row.bib_number || row.num_dossard || row['N° dossard'] || row.dossard) : null,
-              notes: notesText.trim() || null,
-              created_by: user.id,
-              created_by_type: 'timepulse_staff',
-            })
-            .select()
-            .single();
-
-          if (insertError) {
-            // Gestion spécifique de l'erreur de doublon
-            if (insertError.message?.includes('entries_unique_athlete_race')) {
-              console.error(`❌ DOUBLON NON DÉTECTÉ: ${firstName} ${lastName} (athlete_id: ${athleteId}, race_id: ${selectedRaceId})`);
-              errors.push(`${email} (${firstName} ${lastName}): Doublon détecté lors de l'insertion - athlète déjà inscrit`);
-              skipped++;
-            } else {
-              errors.push(`${email}: ${insertError.message}`);
-            }
-            continue;
-          }
-
-          // Importer les options (temps de référence, taille t-shirt, etc.)
-          const optionsToImport: any[] = [];
-
-          for (const [key, value] of Object.entries(row)) {
-            if (!value) continue;
-
-            const normalizedKey = key.toLowerCase();
-            let optionPrice = 0;
-
-            // Chercher le prix de l'option dans une colonne dédiée
-            const priceKey = `${key}_prix`;
-            const priceValue = row[priceKey] || row[`${key}_price`] || row[`prix_${key}`];
-            if (priceValue) {
-              optionPrice = Math.round(parseFloat(priceValue) * 100); // Convertir en centimes
-            }
-
-            // Détection des colonnes d'options
-            if (normalizedKey.includes('temps') || normalizedKey.includes('reference') || normalizedKey.includes('time')) {
-              const option = optionsMap.get('temps de référence') || optionsMap.get('temps reference') || optionsMap.get('reference time');
-              if (option) {
-                optionsToImport.push({
-                  registration_id: newEntry.id,
-                  option_id: option.id,
-                  value: String(value),
-                  quantity: 1,
-                  price_paid_cents: optionPrice || option.price_cents || 0
-                });
-              }
-            }
-
-            if (normalizedKey.includes('taille') || normalizedKey.includes('t-shirt') || normalizedKey.includes('tshirt') || normalizedKey.includes('size')) {
-              const option = optionsMap.get('taille t-shirt') || optionsMap.get('taille tshirt') || optionsMap.get('t-shirt size');
-              if (option) {
-                // Chercher un choix correspondant à la valeur
-                let choiceId = null;
-                let choicePrice = optionPrice;
-
-                if (option.race_option_choices && option.race_option_choices.length > 0) {
-                  const matchingChoice = option.race_option_choices.find(
-                    (c: any) => c.name.toLowerCase() === String(value).toLowerCase()
-                  );
-                  if (matchingChoice) {
-                    choiceId = matchingChoice.id;
-                    choicePrice = matchingChoice.price_cents || option.price_cents || 0;
-                  }
-                }
-
-                optionsToImport.push({
-                  registration_id: newEntry.id,
-                  option_id: option.id,
-                  choice_id: choiceId,
-                  value: String(value),
-                  quantity: 1,
-                  price_paid_cents: choicePrice
-                });
-              }
-            }
-
-            if (normalizedKey.includes('commentaire') || normalizedKey.includes('comment') || normalizedKey.includes('note')) {
-              const option = optionsMap.get('commentaire') || optionsMap.get('commentaires') || optionsMap.get('notes');
-              if (option) {
-                optionsToImport.push({
-                  registration_id: newEntry.id,
-                  option_id: option.id,
-                  value: String(value),
-                  quantity: 1,
-                  price_paid_cents: optionPrice || 0
-                });
-              }
-            }
-          }
-
-          // Insérer les options si présentes
-          if (optionsToImport.length > 0) {
-            await supabase
-              .from('registration_options')
-              .insert(optionsToImport);
-          }
-
-          // Créer l'entrée de paiement si un montant est spécifié
-          if (entryAmount > 0) {
-            await supabase
-              .from('entry_payments')
-              .insert({
-                entry_id: newEntry.id,
-                payment_status: 'paid',
-                amount_paid: entryAmount,
-                payment_method: 'import',
-                payment_date: new Date().toISOString(),
-              });
-            console.log(`💰 Paiement enregistré: ${entryAmount}€`);
-          }
-
-          imported++;
-          console.log(`✅ Inscription créée pour ${email}:`, newEntry.id);
-        } catch (err: any) {
-          console.error(`❌ Erreur pour ${email}:`, err);
-          errors.push(`${email}: ${err.message}`);
-        }
+      if (importError) {
+        console.error('❌ Erreur import batch:', importError);
+        setError(`Erreur lors de l'import: ${importError.message}`);
+        return;
       }
 
-      console.log(`📊 Résumé import: ${imported} importés, ${skipped} ignorés, ${errors.length} erreurs`);
+      if (!result.success) {
+        setError(`Erreur: ${result.error}`);
+        return;
+      }
 
-      // Recalculer les catégories FFA si la course est affiliée FFA
-      console.log('🔄 Vérification des catégories FFA...');
-      await recalculateFFACategories(selectedEventId, selectedRaceId);
+      const imported = result.imported || 0;
+      const skipped = result.skipped || 0;
+      const errors = result.errors || [];
 
-      setSuccess(`Import terminé : ${imported} inscriptions importées, ${skipped} doublons ignorés. Catégories FFA recalculées.`);
+      console.log(`✅ Import terminé: ${imported} importés, ${skipped} ignorés`);
+
+      // Mise à jour de la progression finale
+      setImportProgress({ current: totalRows, total: totalRows });
+
+
+      // Afficher les erreurs si présentes
+      if (errors.length > 0) {
+        console.warn(`⚠️ Erreurs d'import:`, errors);
+      }
+
+      setSuccess(`Import ultra-rapide terminé : ${imported} inscriptions importées, ${skipped} doublons ignorés.`);
       if (errors.length > 0) {
         setError(`${errors.length} erreurs : ${errors.slice(0, 3).join(', ')}${errors.length > 3 ? '...' : ''}`);
       }
@@ -694,7 +424,6 @@ export default function AdminTimepulseImport() {
       setImportProgress({ current: 0, total: 0 });
     }
   };
-
   return (
     <AdminLayout>
       <div className="space-y-6">

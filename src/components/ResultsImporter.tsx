@@ -117,7 +117,7 @@ export default function ResultsImporter({ raceId, onImportComplete }: ResultsImp
           file_type: file.type || 'text/plain',
           imported_by: user.id,
           total_rows: parsed.results.length,
-          mapping_used: columnMapping,
+          mapping_used: columnMapping || null,
           status: 'processing',
         });
 
@@ -208,7 +208,7 @@ export default function ResultsImporter({ raceId, onImportComplete }: ResultsImp
       const errorMessage = error?.message || error?.error_description || error?.hint || 'Erreur inconnue';
       setImportResult({
         success: 0,
-        failed: parsed.results.length,
+        failed: preview.length,
         errorDetails: errorMessage
       });
     } finally {

@@ -41,10 +41,12 @@ export default function CertificateShareModal({ resultId, resultData, raceId, on
       console.log('🔍 Recherche de template pour race_id:', raceId);
 
       // Trouver le template actif pour cette course
+      // On cherche uniquement les templates spécifiques à cette course OU les templates globaux
       const { data: templates, error: templateError } = await supabase
         .from('certificate_templates')
         .select('*')
         .eq('is_active', true)
+        .or(`race_id.eq.${raceId},race_id.is.null`)
         .order('created_at', { ascending: false });
 
       if (templateError) {
@@ -52,20 +54,24 @@ export default function CertificateShareModal({ resultId, resultData, raceId, on
         throw templateError;
       }
 
-      console.log('📋 Templates trouvés:', templates);
+      console.log('📋 Templates trouvés pour cette course:', templates);
 
       if (!templates || templates.length === 0) {
-        setError('Aucun template de diplôme n\'est disponible pour cette épreuve');
+        setError('Aucun diplôme n\'est configuré pour cette épreuve');
         return;
       }
 
       // Prioriser dans cet ordre :
       // 1. Template spécifique à cette race
       // 2. Template global (race_id === null)
-      // 3. N'importe quel template actif
       const specificTemplate = templates.find(t => t.race_id === raceId);
       const globalTemplate = templates.find(t => t.race_id === null);
-      const template = specificTemplate || globalTemplate || templates[0];
+      const template = specificTemplate || globalTemplate;
+
+      if (!template) {
+        setError('Aucun diplôme n\'est configuré pour cette épreuve');
+        return;
+      }
 
       console.log('✅ Template sélectionné:', template);
       setTemplateId(template.id);

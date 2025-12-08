@@ -78,31 +78,54 @@ export default function PublicEntriesList({ raceId, raceName, eventName, eventIm
 
   const loadEntries = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('entries')
-      .select(`
-        id,
-        bib_number,
-        category,
-        created_at,
-        athletes (
-          first_name,
-          last_name,
-          birthdate,
-          gender,
-          license_club,
-          is_anonymous,
-          nationality
-        ),
-        races (name)
-      `)
-      .eq('race_id', raceId)
-      .eq('status', 'confirmed')
-      .order('bib_number', { ascending: true });
 
-    if (!error && data) {
-      setEntries(data as any);
+    let allEntries: any[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('entries')
+        .select(`
+          id,
+          bib_number,
+          category,
+          created_at,
+          athletes (
+            first_name,
+            last_name,
+            birthdate,
+            gender,
+            license_club,
+            is_anonymous,
+            nationality
+          ),
+          races (name)
+        `)
+        .eq('race_id', raceId)
+        .eq('status', 'confirmed')
+        .order('bib_number', { ascending: true })
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        console.error('Error loading entries:', error);
+        break;
+      }
+
+      if (data && data.length > 0) {
+        allEntries = [...allEntries, ...data];
+        from += pageSize;
+
+        if (data.length < pageSize) {
+          hasMore = false;
+        }
+      } else {
+        hasMore = false;
+      }
     }
+
+    setEntries(allEntries as any);
     setLoading(false);
   };
 

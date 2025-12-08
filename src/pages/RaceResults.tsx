@@ -120,6 +120,7 @@ interface Race {
   distance: number;
   sport_type?: string;
   slug?: string;
+  ref_id?: string;
   event: {
     id: string;
     name: string;
@@ -151,11 +152,16 @@ export default function RaceResults() {
   const [filteredResults, setFilteredResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const isRefId = (str: string): boolean => {
+    return /^[A-Z]\d{6}$/.test(str);
+  };
   const [genderFilter, setGenderFilter] = useState<'all' | 'M' | 'F'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [categories, setCategories] = useState<string[]>([]);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [selectedResult, setSelectedResult] = useState<Result | null>(null);
+  const [hasCertificateTemplate, setHasCertificateTemplate] = useState(false);
   const [stats, setStats] = useState<RaceStats>({
     total_finishers: 0,
     by_gender: { male: 0, female: 0 },
@@ -187,8 +193,9 @@ export default function RaceResults() {
     try {
       setLoading(true);
 
-      // Vérifier si c'est un UUID ou un slug
+      // Vérifier le type d'identifiant : UUID, ref_id ou slug
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier!);
+      const isRefIdFormat = isRefId(identifier!);
 
       let raceData;
       let raceError;
@@ -197,28 +204,43 @@ export default function RaceResults() {
         // Requête par UUID
         const result = await supabase
           .from('races')
-          .select('id, name, distance, sport_type, slug, event:events(id, name, slug, image_url, start_date, city)')
+          .select('id, name, distance, sport_type, slug, ref_id, event:events(id, name, slug, image_url, start_date, city)')
           .eq('id', identifier)
           .single();
 
         raceData = result.data;
         raceError = result.error;
-      } else {
-        // Requête par slug
+      } else if (isRefIdFormat) {
+        // Requête par ref_id (format R123456)
         const result = await supabase
           .from('races')
-          .select('id, name, distance, sport_type, slug, event:events(id, name, slug, image_url, start_date, city)')
-          .eq('slug', identifier)
-          .single();
+          .select('id, name, distance, sport_type, slug, ref_id, event:events(id, name, slug, image_url, start_date, city)')
+          .eq('ref_id', identifier)
+          .maybeSingle();
 
         raceData = result.data;
         raceError = result.error;
 
-        // Si trouvé par slug, rediriger vers l'URL slug pour SEO
-        if (raceData && isUUID === false) {
-          // L'URL est déjà bonne, ne rien faire
+        // Si trouvé par ref_id, rediriger vers l'URL ref_id pour cohérence
+        if (raceData && raceData.ref_id) {
+          window.history.replaceState(null, '', `/races/${raceData.ref_id}/results`);
+        }
+      } else {
+        // Requête par slug
+        const result = await supabase
+          .from('races')
+          .select('id, name, distance, sport_type, slug, ref_id, event:events(id, name, slug, image_url, start_date, city)')
+          .eq('slug', identifier)
+          .maybeSingle();
+
+        raceData = result.data;
+        raceError = result.error;
+
+        // Si trouvé par slug et qu'il existe un ref_id, rediriger vers ref_id
+        if (raceData && raceData.ref_id) {
+          window.history.replaceState(null, '', `/races/${raceData.ref_id}/results`);
         } else if (raceData && raceData.slug) {
-          // Rediriger de UUID vers slug
+          // Sinon conserver le slug
           window.history.replaceState(null, '', `/races/${raceData.slug}/results`);
         }
       }
@@ -273,6 +295,16 @@ export default function RaceResults() {
         allResults.map(r => r.category).filter(Boolean)
       )].sort();
       setCategories(uniqueCategories);
+
+      // Vérifier si un template de diplôme existe pour cette course
+      const { data: templates } = await supabase
+        .from('certificate_templates')
+        .select('id')
+        .eq('is_active', true)
+        .or(`race_id.eq.${raceData.id},race_id.is.null`)
+        .limit(1);
+
+      setHasCertificateTemplate(templates && templates.length > 0);
 
     } catch (error) {
       console.error('Erreur chargement résultats:', error);
@@ -408,13 +440,15 @@ export default function RaceResults() {
   const filterResults = () => {
     let filtered = [...results];
 
-    // Filtre recherche
+    // Filtre recherche (nom, dossard ou club)
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        r => r.athlete_name.toLowerCase().includes(term) ||
-             r.bib_number.toString().includes(term)
-      );
+      filtered = filtered.filter(r => {
+        const club = r.club || r.custom_fields?.club || '';
+        return r.athlete_name.toLowerCase().includes(term) ||
+               r.bib_number.toString().includes(term) ||
+               club.toLowerCase().includes(term);
+      });
     }
 
     // Filtre genre
@@ -787,9 +821,9 @@ export default function RaceResults() {
 
         {/* Filtres - Improved Design */}
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 mb-6 border border-gray-100">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-end">
             {/* Recherche */}
-            <div className="md:col-span-2">
+            <div className="flex-1 w-full">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Rechercher
               </label>
@@ -799,14 +833,14 @@ export default function RaceResults() {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Nom ou dossard..."
+                  placeholder="Nom, dossard ou club..."
                   className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
                 />
               </div>
             </div>
 
             {/* Filtre genre */}
-            <div>
+            <div className="w-full sm:w-48">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Genre
               </label>
@@ -822,7 +856,7 @@ export default function RaceResults() {
             </div>
 
             {/* Filtre catégorie */}
-            <div>
+            <div className="w-full sm:w-48">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Catégorie
               </label>
@@ -902,13 +936,15 @@ export default function RaceResults() {
                             />
                           </div>
                         )}
-                        <button
-                          onClick={() => handleOpenCertificate(result)}
-                          className="p-1.5 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white rounded-lg hover:from-yellow-500 hover:to-yellow-600 transition-all duration-300 shadow-md hover:shadow-lg flex-shrink-0"
-                          title="Obtenir mon diplôme"
-                        >
-                          <Award className="w-4 h-4" />
-                        </button>
+                        {hasCertificateTemplate && (
+                          <button
+                            onClick={() => handleOpenCertificate(result)}
+                            className="p-1.5 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white rounded-lg hover:from-yellow-500 hover:to-yellow-600 transition-all duration-300 shadow-md hover:shadow-lg flex-shrink-0"
+                            title="Obtenir mon diplôme"
+                          >
+                            <Award className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                       {(result.club || result.custom_fields?.club) && (
                         <div className="text-xs text-gray-600 mb-1 truncate">
@@ -1003,9 +1039,11 @@ export default function RaceResults() {
                   <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-tight w-20">
                     Clt Cat
                   </th>
-                  <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-tight w-16">
-                    Diplôme
-                  </th>
+                  {hasCertificateTemplate && (
+                    <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-tight w-16">
+                      Diplôme
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
@@ -1118,15 +1156,17 @@ export default function RaceResults() {
                           {result.category_rank}
                         </span>
                       </td>
-                      <td className="px-2 py-2 text-center">
-                        <button
-                          onClick={() => handleOpenCertificate(result)}
-                          className="inline-flex items-center justify-center p-1.5 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white rounded-lg hover:from-yellow-500 hover:to-yellow-600 transition-all duration-300 shadow-md hover:shadow-lg"
-                          title="Obtenir mon diplôme"
-                        >
-                          <Award className="w-4 h-4" />
-                        </button>
-                      </td>
+                      {hasCertificateTemplate && (
+                        <td className="px-2 py-2 text-center">
+                          <button
+                            onClick={() => handleOpenCertificate(result)}
+                            className="inline-flex items-center justify-center p-1.5 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white rounded-lg hover:from-yellow-500 hover:to-yellow-600 transition-all duration-300 shadow-md hover:shadow-lg"
+                            title="Obtenir mon diplôme"
+                          >
+                            <Award className="w-4 h-4" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -1146,11 +1186,11 @@ export default function RaceResults() {
       <Footer />
 
       {/* Modal de diplôme */}
-      {showCertificateModal && selectedResult && raceId && (
+      {showCertificateModal && selectedResult && race && (
         <CertificateShareModal
           resultId={selectedResult.id}
           resultData={prepareResultData(selectedResult)}
-          raceId={raceId}
+          raceId={race.id}
           onClose={() => {
             setShowCertificateModal(false);
             setSelectedResult(null);

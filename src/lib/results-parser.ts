@@ -351,6 +351,42 @@ function parseHTMLWithMapping(content: string, mapping: { [key: string]: number 
           ? cellTexts[mapping.finishTime]
           : undefined;
 
+        const gunTime = mapping.gunTime !== undefined
+          ? cellTexts[mapping.gunTime]
+          : undefined;
+
+        const netTime = mapping.netTime !== undefined
+          ? cellTexts[mapping.netTime]
+          : undefined;
+
+        const club = mapping.club !== undefined
+          ? cellTexts[mapping.club]
+          : undefined;
+
+        const city = mapping.city !== undefined
+          ? cellTexts[mapping.city]
+          : undefined;
+
+        const nationality = mapping.nationality !== undefined
+          ? cellTexts[mapping.nationality]
+          : undefined;
+
+        const averageSpeed = mapping.averageSpeed !== undefined
+          ? cellTexts[mapping.averageSpeed]
+          : undefined;
+
+        const overallRank = mapping.overallRank !== undefined
+          ? cellTexts[mapping.overallRank]
+          : undefined;
+
+        const genderRank = mapping.genderRank !== undefined
+          ? cellTexts[mapping.genderRank]
+          : undefined;
+
+        const categoryRank = mapping.categoryRank !== undefined
+          ? cellTexts[mapping.categoryRank]
+          : undefined;
+
         let status: ParsedResult['status'] = 'finished';
         const statusStr = cellTexts[cellTexts.length - 1]?.toLowerCase();
         if (statusStr === 'dnf' || statusStr === 'abandon') status = 'dnf';
@@ -359,7 +395,16 @@ function parseHTMLWithMapping(content: string, mapping: { [key: string]: number 
 
         // Extract custom fields
         const customFields: { [key: string]: any } = {};
-        const standardFields = ['bib', 'lastName', 'firstName', 'fullName', 'gender', 'category', 'finishTime', 'gunTime', 'netTime', 'year', 'club'];
+        const standardFields = ['bib', 'lastName', 'firstName', 'fullName', 'gender', 'category', 'finishTime', 'gunTime', 'netTime', 'year', 'club', 'city', 'nationality', 'averageSpeed', 'overallRank', 'genderRank', 'categoryRank', 'splitTime1', 'splitTime2', 'splitTime3'];
+
+        // Add extracted standard fields to customFields for storage
+        if (club) customFields.club = club;
+        if (city) customFields.city = city;
+        if (nationality) customFields.nationality = nationality;
+        if (averageSpeed) customFields.averageSpeed = averageSpeed;
+        if (overallRank) customFields.overallRank = overallRank;
+        if (genderRank) customFields.genderRank = genderRank;
+        if (categoryRank) customFields.categoryRank = categoryRank;
 
         Object.keys(mapping).forEach(fieldKey => {
           if (!standardFields.includes(fieldKey) && mapping[fieldKey] !== undefined) {
@@ -672,6 +717,34 @@ export function parseResultsWithMapping(
         ? parts[mapping.netTime]
         : undefined;
 
+      const club = mapping.club !== undefined
+        ? parts[mapping.club]
+        : undefined;
+
+      const city = mapping.city !== undefined
+        ? parts[mapping.city]
+        : undefined;
+
+      const nationality = mapping.nationality !== undefined
+        ? parts[mapping.nationality]
+        : undefined;
+
+      const averageSpeed = mapping.averageSpeed !== undefined
+        ? parts[mapping.averageSpeed]
+        : undefined;
+
+      const overallRank = mapping.overallRank !== undefined
+        ? parts[mapping.overallRank]
+        : undefined;
+
+      const genderRank = mapping.genderRank !== undefined
+        ? parts[mapping.genderRank]
+        : undefined;
+
+      const categoryRank = mapping.categoryRank !== undefined
+        ? parts[mapping.categoryRank]
+        : undefined;
+
       let status: ParsedResult['status'] = 'finished';
       const statusStr = parts[parts.length - 1]?.toLowerCase();
       if (statusStr === 'dnf' || statusStr === 'abandon') status = 'dnf';
@@ -680,7 +753,16 @@ export function parseResultsWithMapping(
 
       // Extract custom fields
       const customFields: { [key: string]: any } = {};
-      const standardFields = ['bib', 'lastName', 'firstName', 'fullName', 'gender', 'category', 'finishTime', 'gunTime', 'netTime', 'year', 'club'];
+      const standardFields = ['bib', 'lastName', 'firstName', 'fullName', 'gender', 'category', 'finishTime', 'gunTime', 'netTime', 'year', 'club', 'city', 'nationality', 'averageSpeed', 'overallRank', 'genderRank', 'categoryRank', 'splitTime1', 'splitTime2', 'splitTime3'];
+
+      // Add extracted standard fields to customFields for storage
+      if (club) customFields.club = club;
+      if (city) customFields.city = city;
+      if (nationality) customFields.nationality = nationality;
+      if (averageSpeed) customFields.averageSpeed = averageSpeed;
+      if (overallRank) customFields.overallRank = overallRank;
+      if (genderRank) customFields.genderRank = genderRank;
+      if (categoryRank) customFields.categoryRank = categoryRank;
 
       Object.keys(mapping).forEach(fieldKey => {
         if (!standardFields.includes(fieldKey) && mapping[fieldKey] !== undefined) {

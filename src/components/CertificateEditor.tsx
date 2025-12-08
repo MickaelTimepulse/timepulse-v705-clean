@@ -177,7 +177,7 @@ export default function CertificateEditor({ templateImageUrl, variables, onChang
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Zone de prévisualisation */}
       <div className="lg:col-span-2">
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="bg-white rounded-lg shadow-lg p-6 sticky top-4 max-h-[calc(100vh-2rem)] overflow-auto">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-gray-900">Prévisualisation</h3>
             <div className="flex gap-2">
@@ -206,7 +206,11 @@ export default function CertificateEditor({ templateImageUrl, variables, onChang
           <div
             ref={canvasRef}
             className="relative w-full bg-gray-100 rounded-lg overflow-hidden cursor-crosshair"
-            style={{ aspectRatio: '1/1' }}
+            style={{
+              aspectRatio: imageSize.width && imageSize.height
+                ? `${imageSize.width}/${imageSize.height}`
+                : '1/1'
+            }}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
@@ -270,13 +274,15 @@ export default function CertificateEditor({ templateImageUrl, variables, onChang
                 const width = (variable.width || 40) * scaleX;
                 const height = (variable.height || 40) * scaleY;
 
+                // Le canvas centre le drapeau autour du point (X, Y)
+                // On doit donc décaler de -width/2 et -height/2 pour correspondre
                 return (
                   <div
                     key={variable.id}
                     className={`absolute cursor-move ${selectedVariable === variable.id ? 'ring-2 ring-pink-500' : ''}`}
                     style={{
-                      left: `${variable.x * scaleX}px`,
-                      top: `${variable.y * scaleY}px`,
+                      left: `${variable.x * scaleX - width/2}px`,
+                      top: `${variable.y * scaleY - height/2}px`,
                       width: `${width}px`,
                       height: `${height}px`
                     }}
@@ -302,8 +308,17 @@ export default function CertificateEditor({ templateImageUrl, variables, onChang
               const fontInfo = PROFESSIONAL_FONTS.find(f => f.name === variable.fontFamily);
               const fontFamily = fontInfo ? fontInfo.family : variable.fontFamily;
 
+              // Calculer le décalage pour correspondre au comportement du Canvas
+              // Canvas avec textAlign 'center' centre le texte AUTOUR du point X
+              // CSS avec textAlign 'center' centre le texte A PARTIR du point X
+              let transformValue = '';
+              if (variable.align === 'center') {
+                transformValue = 'translateX(-50%)';
+              } else if (variable.align === 'right') {
+                transformValue = 'translateX(-100%)';
+              }
+
               // Construire le style avec les effets
-              // IMPORTANT: Pas de transform translate pour correspondre au rendu Canvas
               const textStyle: React.CSSProperties = {
                 left: `${variable.x * scaleX}px`,
                 top: `${variable.y * scaleY}px`,
@@ -311,8 +326,9 @@ export default function CertificateEditor({ templateImageUrl, variables, onChang
                 fontFamily: fontFamily,
                 color: variable.color,
                 fontWeight: variable.bold ? 'bold' : 'normal',
-                textAlign: variable.align,
-                whiteSpace: 'nowrap'
+                textAlign: 'left', // Toujours left, on gère l'alignement avec transform
+                whiteSpace: 'nowrap',
+                transform: transformValue
               };
 
               // Ajouter l'effet d'ombre si défini
