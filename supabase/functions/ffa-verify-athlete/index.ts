@@ -203,16 +203,63 @@ Deno.serve(async (req: Request) => {
       strnomabr_dep: fields[25],
       strnomabr_lig: fields[26],
       msg_retour: fields[27] || 'OK',
+      msg_detail: fields[28] || '',
     };
 
-    const isSuccess =
-      parsed.msg_retour === 'OK' ||
-      parsed.infoflg === 'O' ||
-      (!parsed.msg_retour.includes('PROx011') &&
-       !parsed.msg_retour.includes('PROx012') &&
-       !parsed.msg_retour.includes('PROx014'));
+    // Vérifier les messages d'erreur dans msg_retour OU msg_detail
+    const fullMessage = `${parsed.msg_retour} ${parsed.msg_detail}`.toUpperCase();
 
-    if (parsed.msg_retour.includes('PROx014')) {
+    // Erreur PROx011 : Identifiants non autorisés
+    if (fullMessage.includes('PROX011')) {
+      return new Response(
+        JSON.stringify({
+          connected: false,
+          error_code: 'PROx011',
+          message: 'Identifiants FFA non autorisés pour ce service',
+          details: {
+            uid,
+            csv_raw: csvResult,
+            msg_retour: parsed.msg_retour,
+            msg_detail: parsed.msg_detail,
+            hint: "Les identifiants SIFFA configurés ne sont pas autorisés à utiliser le webservice de chronométrage. Contactez la FFA (dsi@athle.fr) pour activer l'accès ou vérifiez vos identifiants."
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    }
+
+    // Erreur PROx012 : Service bloqué
+    if (fullMessage.includes('PROX012')) {
+      return new Response(
+        JSON.stringify({
+          connected: false,
+          error_code: 'PROx012',
+          message: 'Service FFA bloqué',
+          details: {
+            uid,
+            csv_raw: csvResult,
+            msg_retour: parsed.msg_retour,
+            msg_detail: parsed.msg_detail,
+            hint: "Votre accès au webservice FFA est bloqué. Contactez dsi@athle.fr"
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    }
+
+    if (fullMessage.includes('PROX014')) {
       return new Response(
         JSON.stringify({
           connected: false,
@@ -222,6 +269,7 @@ Deno.serve(async (req: Request) => {
             uid,
             csv_raw: csvResult,
             msg_retour: parsed.msg_retour,
+            msg_detail: parsed.msg_detail,
             hint: "Pour utiliser la vérification FFA, l'événement doit être déclaré auprès de la FFA avec un numéro d'événement valide. Sinon, les participants peuvent remplir leurs informations manuellement."
           },
         }),
@@ -234,6 +282,12 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
+
+    // Vérifier si la vérification a réussi
+    const isSuccess =
+      (parsed.msg_retour === 'OK' || parsed.infoflg === 'O') &&
+      !fullMessage.includes('NOK') &&
+      !fullMessage.includes('PROX');
 
     if (isSuccess) {
       return new Response(

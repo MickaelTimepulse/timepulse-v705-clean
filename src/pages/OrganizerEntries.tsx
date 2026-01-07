@@ -1,30 +1,53 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, FileText, ShoppingCart } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, FileText, ShoppingCart, FileCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EntriesList from '../components/EntriesList';
 import OrganizerCarts from '../components/OrganizerCarts';
+import OrganizerWaiverValidator from '../components/OrganizerWaiverValidator';
 
 export default function OrganizerEntries() {
-  const [searchParams] = useSearchParams();
+  const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
-  const eventId = searchParams.get('eventId');
   const [event, setEvent] = useState<any>(null);
   const [races, setRaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'entries' | 'carts'>('entries');
+  const [organizerId, setOrganizerId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'entries' | 'carts' | 'waivers'>('entries');
 
   useEffect(() => {
+    console.log('🚀 [OrganizerEntries] useEffect déclenché', {
+      eventId,
+      hasEventId: !!eventId,
+      eventIdType: typeof eventId
+    });
+
     if (!eventId) {
+      console.error('❌ [OrganizerEntries] Pas d\'eventId, redirection...');
       navigate('/organizer/dashboard');
       return;
     }
+
+    console.log('📥 [OrganizerEntries] Début chargement event...');
     loadEventData();
   }, [eventId]);
 
   const loadEventData = async () => {
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Non authentifié');
+
+      const { data: organizerData } = await supabase
+        .from('organizers')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (organizerData) {
+        setOrganizerId(organizerData.id);
+      }
+
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('*')
@@ -32,7 +55,19 @@ export default function OrganizerEntries() {
         .single();
 
       if (eventError) throw eventError;
+
+      console.log('🔍 [OrganizerEntries] Event loaded:', {
+        eventData,
+        eventDataType: typeof eventData,
+        isNull: eventData === null,
+        isUndefined: eventData === undefined,
+        ffa_affiliated: eventData?.ffa_affiliated,
+        ffa_calorg_code: eventData?.ffa_calorg_code
+      });
+
       setEvent(eventData);
+
+      console.log('✅ [OrganizerEntries] setEvent appelé avec:', eventData?.id);
 
       const { data: racesData, error: racesError } = await supabase
         .from('races')
@@ -42,10 +77,13 @@ export default function OrganizerEntries() {
 
       if (racesError) throw racesError;
       setRaces(racesData || []);
+
+      console.log('🏁 [OrganizerEntries] Chargement terminé avec succès');
     } catch (error) {
-      console.error('Error loading event data:', error);
+      console.error('❌ [OrganizerEntries] Error loading event data:', error);
     } finally {
       setLoading(false);
+      console.log('⏹️ [OrganizerEntries] Loading = false');
     }
   };
 
@@ -58,12 +96,20 @@ export default function OrganizerEntries() {
   }
 
   if (!event) {
+    console.log('🚫 [OrganizerEntries] Pas d\'event, affichage message erreur');
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-gray-600">Événement introuvable</div>
       </div>
     );
   }
+
+  console.log('🎨 [OrganizerEntries] Rendu du composant avec event:', {
+    id: event.id,
+    name: event.name,
+    ffa_affiliated: event.ffa_affiliated,
+    eventPassedToEntriesList: !!event
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -112,14 +158,50 @@ export default function OrganizerEntries() {
                 <ShoppingCart className="w-5 h-5 inline mr-2" />
                 Paniers en attente
               </button>
+              {!event?.ffa_affiliated && (
+                <button
+                  onClick={() => setActiveTab('waivers')}
+                  className={`py-4 px-6 text-sm font-medium border-b-2 transition ${
+                    activeTab === 'waivers'
+                      ? 'border-orange-600 text-orange-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <FileCheck className="w-5 h-5 inline mr-2" />
+                  Validation des décharges
+                </button>
+              )}
             </nav>
           </div>
         </div>
 
-        {activeTab === 'entries' ? (
-          <EntriesList eventId={eventId} races={races} />
-        ) : (
+        {activeTab === 'entries' && (
+          <>
+            {/* Debug: Afficher l'état de l'événement */}
+            <div className="bg-purple-100 border-l-4 border-purple-500 text-purple-800 px-4 py-3 rounded mb-4">
+              <p className="font-bold">🔍 DEBUG OrganizerEntries</p>
+              <p className="text-sm">Event existe: {event ? 'OUI' : 'NON'}</p>
+              {event && (
+                <>
+                  <p className="text-sm">Event ID: {event.id}</p>
+                  <p className="text-sm">FFA affilié: {String(event.ffa_affiliated)}</p>
+                  <p className="text-sm">Code CalOrg: {event.ffa_calorg_code}</p>
+                </>
+              )}
+            </div>
+            <EntriesList eventId={eventId} races={races} event={event} />
+          </>
+        )}
+
+        {activeTab === 'carts' && (
           <OrganizerCarts eventId={eventId} />
+        )}
+
+        {activeTab === 'waivers' && organizerId && (
+          <OrganizerWaiverValidator
+            eventId={eventId}
+            organizerId={organizerId}
+          />
         )}
       </div>
     </div>

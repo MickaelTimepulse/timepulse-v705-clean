@@ -80,6 +80,15 @@ export default function EventDetail() {
         return;
       }
 
+      console.log('📅 Event loaded:', {
+        name: eventData.name,
+        public_registration: eventData.public_registration,
+        registration_opens: eventData.registration_opens,
+        registration_closes: eventData.registration_closes,
+        registration_url: eventData.registration_url,
+        carpooling_enabled: eventData.carpooling_enabled
+      });
+
       setEvent(eventData);
 
       const { data: racesData, error: racesError } = await supabase
@@ -203,16 +212,30 @@ export default function EventDetail() {
   };
 
   const isRegistrationOpen = (event: any) => {
-    if (!event.registration_opens) return false;
+    if (!event.registration_opens) {
+      console.log('❌ Registration check failed: no registration_opens date');
+      return false;
+    }
     const now = new Date();
     const openDate = new Date(event.registration_opens);
 
     if (!event.registration_closes) {
-      return now >= openDate;
+      const isOpen = now >= openDate;
+      console.log(`✅ Registration check (no close date): ${isOpen}`, {
+        now: now.toISOString(),
+        openDate: openDate.toISOString()
+      });
+      return isOpen;
     }
 
     const closeDate = new Date(event.registration_closes);
-    return now >= openDate && now <= closeDate;
+    const isOpen = now >= openDate && now <= closeDate;
+    console.log(`✅ Registration check: ${isOpen}`, {
+      now: now.toISOString(),
+      openDate: openDate.toISOString(),
+      closeDate: closeDate.toISOString()
+    });
+    return isOpen;
   };
 
   const isRaceFull = (race: any) => {
@@ -327,8 +350,10 @@ export default function EventDetail() {
 
             {event.full_address && (
               <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Lieu & Co-voiturage</h2>
-                <div className="grid md:grid-cols-2 gap-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  {event.carpooling_enabled ? 'Lieu & Co-voiturage' : 'Lieu'}
+                </h2>
+                <div className={`grid ${event.carpooling_enabled ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-6`}>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">Adresse</h3>
                     <div className="flex items-start gap-2 text-gray-600">
@@ -507,27 +532,42 @@ export default function EventDetail() {
                             >
                               S'inscrire
                             </Link>
-                          ) : (
+                          ) : event.registration_url ? (
                             <a
-                              href={event.registration_url || '#'}
-                              target={event.registration_url ? "_blank" : "_self"}
+                              href={event.registration_url}
+                              target="_blank"
                               rel="noopener noreferrer"
                               className="block w-full bg-white hover:bg-gray-50 text-gray-900 font-bold py-2.5 px-4 rounded-lg text-center transition-all duration-200 shadow-md hover:shadow-lg text-sm"
                             >
                               S'inscrire
                             </a>
+                          ) : (
+                            <div className="block w-full bg-gray-200 text-gray-500 font-bold py-2.5 px-4 rounded-lg text-center text-sm">
+                              Inscriptions externes
+                            </div>
                           )
                         ) : (
-                          <div
-                            className="block w-full font-bold py-2.5 px-4 rounded-lg text-center text-sm backdrop-blur-md shadow-lg transition-all duration-300"
-                            style={{
-                              background: 'linear-gradient(135deg, #78716c15 0%, #78716c25 100%)',
-                              border: '2px solid #78716c',
-                              color: 'white',
-                              textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                            }}
-                          >
-                            Inscriptions fermées
+                          <div className="space-y-2">
+                            <div
+                              className="block w-full font-bold py-2.5 px-4 rounded-lg text-center text-sm backdrop-blur-md shadow-lg transition-all duration-300"
+                              style={{
+                                background: 'linear-gradient(135deg, #78716c15 0%, #78716c25 100%)',
+                                border: '2px solid #78716c',
+                                color: 'white',
+                                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                              }}
+                            >
+                              Inscriptions fermées
+                            </div>
+                            {!registrationOpen && event.registration_opens && (
+                              <p className="text-xs text-gray-600 text-center">
+                                {new Date() < new Date(event.registration_opens) ? (
+                                  <>Ouverture le {new Date(event.registration_opens).toLocaleDateString('fr-FR')}</>
+                                ) : (
+                                  <>Clôture le {new Date(event.registration_closes).toLocaleDateString('fr-FR')}</>
+                                )}
+                              </p>
+                            )}
                           </div>
                         )}
 

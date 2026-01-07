@@ -503,10 +503,14 @@ export default function EventCarousel({ filters }: EventCarouselProps) {
         <div className="text-center">
           <Link
             to="/"
-            className="inline-flex items-center space-x-3 px-8 py-4 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl font-bold group"
+            className="group relative inline-flex items-center gap-3 px-8 py-4 bg-slate-900 rounded-xl shadow-lg hover:shadow-2xl transform hover:-translate-y-0.5 transition-all duration-300 overflow-hidden border-2 border-orange-400 hover:border-orange-500"
           >
-            <span>Voir tous les événements</span>
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-800 to-slate-900 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <span className="relative z-10 font-bold tracking-wider bg-gradient-to-r from-white via-orange-50 to-white bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(255,255,255,0.3)] text-lg" style={{ fontFamily: "'Inter', 'SF Pro Display', -apple-system, system-ui, sans-serif", letterSpacing: '0.02em' }}>
+              Voir tous les événements
+            </span>
+            <ArrowRight className="w-5 h-5 relative z-10 text-orange-400 group-hover:text-orange-300 transition-colors" />
+            <div className="absolute top-0 -right-12 w-24 h-full bg-white/10 transform skew-x-12 group-hover:right-full transition-all duration-700"></div>
           </Link>
         </div>
       </div>

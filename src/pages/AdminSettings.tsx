@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/Admin/AdminLayout';
 import ProtectedAdminRoute from '../components/ProtectedAdminRoute';
-import { Settings as SettingsIcon, Lock, User, Save, Sparkles, Eye, EyeOff, Mail, ArrowRight, Youtube } from 'lucide-react';
+import { Settings as SettingsIcon, Lock, User, Save, Sparkles, Eye, EyeOff, Mail, ArrowRight, Youtube, Power, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { updatePassword } from '../lib/auth';
 import { supabase } from '../lib/supabase';
@@ -35,6 +35,11 @@ export default function AdminSettings() {
   const [savingYoutube, setSavingYoutube] = useState(false);
   const [youtubeMessage, setYoutubeMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState('');
+  const [savingMaintenance, setSavingMaintenance] = useState(false);
+  const [maintenanceStatusMessage, setMaintenanceStatusMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
   useEffect(() => {
     loadSettings();
   }, []);
@@ -50,7 +55,9 @@ export default function AdminSettings() {
           'oximailing_api_password',
           'oximailing_default_from',
           'oximailing_default_from_name',
-          'youtube_api_key'
+          'youtube_api_key',
+          'maintenance_mode',
+          'maintenance_message'
         ]);
 
       if (data) {
@@ -73,6 +80,12 @@ export default function AdminSettings() {
               break;
             case 'youtube_api_key':
               setYoutubeApiKey(setting.value || '');
+              break;
+            case 'maintenance_mode':
+              setMaintenanceMode(setting.value === 'true');
+              break;
+            case 'maintenance_message':
+              setMaintenanceMessage(setting.value || 'Nous effectuons actuellement une maintenance programmée pour améliorer votre expérience. Le site sera de nouveau disponible très prochainement.');
               break;
           }
         });
@@ -175,6 +188,56 @@ export default function AdminSettings() {
     }
   }
 
+  async function handleToggleMaintenance() {
+    setSavingMaintenance(true);
+    setMaintenanceStatusMessage(null);
+
+    try {
+      const newMode = !maintenanceMode;
+
+      // Mettre à jour le mode maintenance
+      const { error: modeError } = await supabase
+        .from('settings')
+        .update({ value: String(newMode) })
+        .eq('key', 'maintenance_mode');
+
+      if (modeError) throw modeError;
+
+      // Mettre à jour le message si modifié
+      if (maintenanceMessage) {
+        const { error: messageError } = await supabase
+          .from('settings')
+          .update({ value: maintenanceMessage })
+          .eq('key', 'maintenance_message');
+
+        if (messageError) throw messageError;
+      }
+
+      setMaintenanceMode(newMode);
+      setMaintenanceStatusMessage({
+        type: 'success',
+        text: newMode
+          ? '🔴 Mode maintenance ACTIVÉ - Le site affiche maintenant la page de maintenance'
+          : '🟢 Mode maintenance DÉSACTIVÉ - Le site est de nouveau accessible'
+      });
+
+      // Recharger la page après 2 secondes si on active la maintenance
+      if (newMode) {
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      }
+    } catch (error: any) {
+      console.error('Error toggling maintenance mode:', error);
+      setMaintenanceStatusMessage({
+        type: 'error',
+        text: `Erreur : ${error.message}`
+      });
+    } finally {
+      setSavingMaintenance(false);
+    }
+  }
+
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
@@ -237,6 +300,100 @@ export default function AdminSettings() {
           </div>
 
           <div className="lg:col-span-2 space-y-6">
+            {/* Mode Maintenance */}
+            <div className="bg-white rounded-lg shadow p-6 border-2 border-orange-200">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  maintenanceMode ? 'bg-red-100' : 'bg-orange-100'
+                }`}>
+                  <Power className={`w-5 h-5 ${maintenanceMode ? 'text-red-600' : 'text-orange-600'}`} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Mode Maintenance</h3>
+                  <p className="text-sm text-gray-600">
+                    {maintenanceMode
+                      ? '🔴 Le site est actuellement en maintenance'
+                      : 'Activer le mode maintenance pour bloquer l\'accès public'}
+                  </p>
+                </div>
+              </div>
+
+              {maintenanceStatusMessage && (
+                <div className={`mb-4 p-4 rounded-lg ${
+                  maintenanceStatusMessage.type === 'success'
+                    ? 'bg-green-50 border border-green-200 text-green-700'
+                    : 'bg-red-50 border border-red-200 text-red-700'
+                }`}>
+                  {maintenanceStatusMessage.text}
+                </div>
+              )}
+
+              {maintenanceMode && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
+                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-red-800">
+                    <p className="font-semibold mb-1">Le site est actuellement en maintenance</p>
+                    <p>Les visiteurs voient une page de maintenance avec le message ci-dessous. Seuls les administrateurs peuvent accéder à l'interface d'administration.</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="maintenance-message" className="block text-sm font-medium text-gray-700 mb-2">
+                    Message de maintenance
+                  </label>
+                  <textarea
+                    id="maintenance-message"
+                    value={maintenanceMessage}
+                    onChange={(e) => setMaintenanceMessage(e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="Message affiché sur la page de maintenance..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Ce message sera affiché aux visiteurs pendant la maintenance
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleToggleMaintenance}
+                  disabled={savingMaintenance}
+                  className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    maintenanceMode
+                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700'
+                      : 'bg-gradient-to-r from-orange-600 to-red-600 text-white hover:from-orange-700 hover:to-red-700'
+                  }`}
+                >
+                  <Power className="w-5 h-5" />
+                  <span>
+                    {savingMaintenance
+                      ? 'Modification en cours...'
+                      : maintenanceMode
+                        ? '🟢 Désactiver la maintenance'
+                        : '🔴 Activer la maintenance'}
+                  </span>
+                </button>
+
+                <div className={`border rounded-lg p-4 ${
+                  maintenanceMode ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'
+                }`}>
+                  <h4 className="text-sm font-semibold mb-2 ${maintenanceMode ? 'text-red-900' : 'text-orange-900'}">
+                    À propos du mode maintenance
+                  </h4>
+                  <ul className={`text-xs space-y-1 ${maintenanceMode ? 'text-red-800' : 'text-orange-800'}`}>
+                    <li>• Active une page de maintenance professionnelle avec l'image Tour Eiffel</li>
+                    <li>• Bloque l'accès public au site (sauf administrateurs)</li>
+                    <li>• Les admins peuvent toujours accéder à l'interface d'administration</li>
+                    <li>• Le message personnalisé s'affiche sur la page de maintenance</li>
+                    <li>• Design moderne avec animations et bouton de rafraîchissement</li>
+                    <li>• Idéal pour les mises à jour, migrations ou interventions techniques</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">

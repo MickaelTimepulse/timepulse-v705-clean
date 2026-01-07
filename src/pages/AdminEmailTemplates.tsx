@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Mail, ArrowLeft, Save, Eye, AlertCircle, X, Info } from 'lucide-react';
+import ImageSelector from '../components/Admin/ImageSelector';
 
 interface EmailTemplate {
   id: string;
@@ -13,6 +14,7 @@ interface EmailTemplate {
   text_body: string | null;
   available_variables: string[];
   is_active: boolean;
+  header_image_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -67,7 +69,8 @@ export default function AdminEmailTemplates() {
           p_subject: selectedTemplate.subject,
           p_html_body: selectedTemplate.html_body,
           p_text_body: selectedTemplate.text_body,
-          p_is_active: selectedTemplate.is_active
+          p_is_active: selectedTemplate.is_active,
+          p_header_image_url: selectedTemplate.header_image_url || null
         });
 
       if (updateError) throw updateError;
@@ -89,12 +92,38 @@ export default function AdminEmailTemplates() {
     if (!selectedTemplate) return '';
 
     let preview = selectedTemplate.html_body;
+
+    // Replace {{site_url}} with current origin
+    preview = preview.replace(/\{\{site_url\}\}/g, window.location.origin);
+
     selectedTemplate.available_variables.forEach(variable => {
       const sampleValues: Record<string, string> = {
         name: 'Jean Dupont',
         email: 'jean.dupont@example.com',
         password: 'MotDePasse123',
-        loginUrl: 'https://timepulse.fr/admin/login'
+        loginUrl: 'https://timepulse.fr/admin/login',
+        athlete_name: 'Marie Martin',
+        buyer_name: 'Pierre Durand',
+        seller_name: 'Sophie Lefebvre',
+        organizer_name: 'Jean-Claude Organisateur',
+        event_name: 'Trail des Montagnes 2025',
+        race_name: '21 km - Semi-marathon',
+        bib_number: '1234',
+        price: '45.00',
+        refund_amount: '45.00',
+        event_date: '15 juin 2025',
+        refund_date: '10 janvier 2025',
+        sale_date: '5 janvier 2025',
+        exchange_date: '5 janvier 2025 à 14h30',
+        management_code: 'ABC123XYZ',
+        bib_exchange_url: 'https://timepulse.fr/bib-exchange/manage',
+        event_url: 'https://timepulse.fr/events/trail-montagnes-2025',
+        entries_url: 'https://timepulse.fr/organizer/entries',
+        payment_method: 'Carte bancaire',
+        transaction_id: 'TXN-2025-001234',
+        athleteFirstName: 'Marie',
+        athleteLastName: 'Martin',
+        athleteEmail: 'marie.martin@example.com'
       };
       const value = sampleValues[variable] || `[${variable}]`;
       preview = preview.replace(new RegExp(`{{${variable}}}`, 'g'), value);
@@ -252,6 +281,15 @@ export default function AdminEmailTemplates() {
                 Template {selectedTemplate.is_active ? 'activé' : 'désactivé'}
               </span>
             </div>
+
+            {/* Image Selector */}
+            <ImageSelector
+              value={selectedTemplate.header_image_url || ''}
+              onChange={(url) => setSelectedTemplate({
+                ...selectedTemplate,
+                header_image_url: url
+              })}
+            />
 
             {/* Sujet */}
             <div>

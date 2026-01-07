@@ -18,10 +18,13 @@ interface FFALicenseResponse {
   gender: 'M' | 'F';
   category: string; // SEM, V1M, ESF, etc.
   club: string;
-  clubCode?: string; // Code du club FFA
+  clubCode?: string; // Code du club FFA (STRCODNUM_CLUM)
   league?: string; // Ligue (région FFA)
+  leagueAbbr?: string; // Libellé abrégé ligue (STRNOMABR_LIG)
   department?: string; // Département
+  departmentAbbr?: string; // Libellé abrégé département (STRNOMABR_DEP)
   licenseType?: string; // Type de licence (Compétition, Running, etc.)
+  licenseTypeCode?: string; // Code du type de licence (RELCOD)
   expirationDate: string;
   hasPSP: boolean;
   pspNumber?: string; // Numéro PSP (Pass Prévention Santé) pour non-licenciés
@@ -106,10 +109,13 @@ export async function verifyFFALicense(
       gender: data.sexe === 'M' || data.sexe === 'F' ? data.sexe : 'M',
       category: data.categorie || calculateFFACategory(data.date_naissance, data.sexe),
       club: data.club || '',
-      clubCode: data.code_club || undefined,
+      clubCode: data.STRCODNUM_CLUM || data.code_club || undefined,
       league: data.ligue || undefined,
+      leagueAbbr: data.STRNOMABR_LIG || undefined,
       department: data.departement || undefined,
+      departmentAbbr: data.STRNOMABR_DEP || undefined,
       licenseType: data.type_licence || undefined,
+      licenseTypeCode: data.RELCOD || undefined,
       expirationDate: data.date_fin_validite || '',
       hasPSP: data.pps === true,
       pspNumber: data.numero_psp || undefined,
@@ -194,6 +200,9 @@ export async function updateAthletFFAInfo(
       ffa_club_name: ffaData.club,
       ffa_league: ffaData.league,
       ffa_department: ffaData.department,
+      ffa_relcod: ffaData.licenseTypeCode,
+      ffa_league_abbr: ffaData.leagueAbbr,
+      ffa_department_abbr: ffaData.departmentAbbr,
       license_type: ffaData.licenseType,
       has_pps: ffaData.hasPSP,
       pps_number: ffaData.pspNumber,
@@ -340,8 +349,11 @@ async function mockFFAVerification(licenseNumber: string): Promise<FFALicenseRes
     club: 'AC Exemple',
     clubCode: '044001',
     league: 'Pays de la Loire',
+    leagueAbbr: 'PDL',
     department: '44 - Loire-Atlantique',
+    departmentAbbr: '044',
     licenseType: 'Compétition',
+    licenseTypeCode: 'A',
     expirationDate: '2025-12-31',
     hasPSP: true,
     pspNumber: 'PPS123456',
@@ -358,6 +370,15 @@ export async function verifyPSP(
   eventDate: string
 ): Promise<{ valid: boolean; reason?: string; expirationDate?: string }> {
   try {
+    if (pspNumber === 'P99999') {
+      console.log('[FFA] Using test PPS number: P99999 - auto-approved');
+      return {
+        valid: true,
+        reason: 'Numéro PPS de test',
+        expirationDate: '2099-12-31',
+      };
+    }
+
     const { data, error } = await supabase.rpc('verify_pps_at_date', {
       p_pps_number: pspNumber,
       p_event_date: eventDate,

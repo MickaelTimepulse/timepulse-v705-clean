@@ -304,6 +304,21 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Bouton Demande de devis */}
+        <div className="mt-8 mb-6 flex justify-center">
+          <Link
+            to="/form/demande-de-devis"
+            className="group relative inline-flex items-center gap-3 px-8 py-4 bg-slate-900 rounded-xl shadow-lg hover:shadow-2xl transform hover:-translate-y-0.5 transition-all duration-300 overflow-hidden border-2 border-orange-400 hover:border-orange-500"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-800 to-slate-900 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <Mail className="w-5 h-5 relative z-10 text-orange-400 group-hover:text-orange-300 transition-colors" />
+            <span className="relative z-10 font-bold tracking-wider bg-gradient-to-r from-white via-orange-50 to-white bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(255,255,255,0.3)] text-lg" style={{ fontFamily: "'Inter', 'SF Pro Display', -apple-system, system-ui, sans-serif", letterSpacing: '0.02em' }}>
+              Demande de devis
+            </span>
+            <div className="absolute top-0 -right-12 w-24 h-full bg-white/10 transform skew-x-12 group-hover:right-full transition-all duration-700"></div>
+          </Link>
+        </div>
+
         <div className="border-t border-gray-800 pt-6">
           <p className="text-gray-400 text-sm font-light text-center">
             {footerData.copyright_text}

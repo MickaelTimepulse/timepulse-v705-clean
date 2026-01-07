@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 import {
   Bold, Italic, Link, Image, AlignLeft, AlignCenter, AlignRight,
   Eye, Code, Palette, Upload, Trash2, Settings
@@ -15,6 +16,13 @@ interface EmailTemplateEditorProps {
   onBackgroundColorChange: (color: string) => void;
   opacity?: number;
   onOpacityChange: (opacity: number) => void;
+  colorOpacity?: number;
+  onColorOpacityChange?: (opacity: number) => void;
+}
+
+interface BackgroundImageOption {
+  name: string;
+  value: string;
 }
 
 export default function EmailTemplateEditor({
@@ -27,10 +35,16 @@ export default function EmailTemplateEditor({
   backgroundColor = '#ffffff',
   onBackgroundColorChange,
   opacity = 100,
-  onOpacityChange
+  onOpacityChange,
+  colorOpacity = 50,
+  onColorOpacityChange
 }: EmailTemplateEditorProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [showCode, setShowCode] = useState(false);
+  const [backgroundImageOptions, setBackgroundImageOptions] = useState<BackgroundImageOption[]>([
+    { name: 'Aucune', value: '' }
+  ]);
+  const [loadingImages, setLoadingImages] = useState(true);
 
   const insertAtCursor = (text: string) => {
     const textarea = document.getElementById('email-editor') as HTMLTextAreaElement;
@@ -69,11 +83,66 @@ export default function EmailTemplateEditor({
     }, 0);
   };
 
-  const backgroundImageOptions = [
-    { name: 'Aucune', value: '' },
-    { name: 'Triathlon', value: '/triathlete.jpeg' },
-    { name: 'Eclipse', value: '/solar-eclipse-hd-4k-space-585bmk4grpijoamp.jpg' },
-  ];
+  useEffect(() => {
+    loadBackgroundImages();
+  }, []);
+
+  const loadBackgroundImages = async () => {
+    try {
+      setLoadingImages(true);
+
+      // Charger les images depuis le bucket email-assets
+      const { data: emailAssets, error: emailError } = await supabase.storage
+        .from('email-assets')
+        .list();
+
+      const options: BackgroundImageOption[] = [{ name: 'Aucune', value: '' }];
+
+      // Ajouter les images du bucket email-assets
+      if (emailAssets && !emailError) {
+        const emailImageOptions = emailAssets
+          .filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name))
+          .map(file => {
+            const { data: urlData } = supabase.storage
+              .from('email-assets')
+              .getPublicUrl(file.name);
+
+            // Extraire un nom lisible du fichier
+            const name = file.name
+              .replace(/\.(jpg|jpeg|png|gif|webp)$/i, '')
+              .replace(/[-_]/g, ' ')
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+
+            return {
+              name: name || file.name,
+              value: urlData.publicUrl
+            };
+          });
+
+        options.push(...emailImageOptions);
+      }
+
+      // Ajouter quelques images locales par défaut
+      options.push(
+        { name: 'Triathlon', value: '/triathlete.jpeg' },
+        { name: 'Eclipse', value: '/solar-eclipse-hd-4k-space-585bmk4grpijoamp.jpg' },
+        { name: 'Course masse 1', value: '/course-pied-masse-1.jpeg' },
+        { name: 'Course masse 2', value: '/course-pied-masse-2.jpeg' },
+        { name: 'Open water', value: '/open-water.jpeg' },
+        { name: 'Course piste stade', value: '/course-piste-stade.jpeg' },
+        { name: 'Coureur victoire', value: '/coureur-victoire-1.jpeg' },
+        { name: 'Tour Eiffel coureur', value: '/tour-eiffel-coureur.jpeg' }
+      );
+
+      setBackgroundImageOptions(options);
+    } catch (err) {
+      console.error('Erreur lors du chargement des images:', err);
+    } finally {
+      setLoadingImages(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -174,26 +243,40 @@ export default function EmailTemplateEditor({
                   value={backgroundImage}
                   onChange={(e) => onBackgroundImageChange(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  disabled={loadingImages}
                 >
-                  {backgroundImageOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.name}
-                    </option>
-                  ))}
+                  {loadingImages ? (
+                    <option>Chargement des images...</option>
+                  ) : (
+                    backgroundImageOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.name}
+                      </option>
+                    ))
+                  )}
                 </select>
                 {backgroundImage && (
-                  <div className="mt-2 relative group">
-                    <img
-                      src={backgroundImage}
-                      alt="Aperçu"
-                      className="w-full h-24 object-cover rounded"
-                    />
-                    <button
-                      onClick={() => onBackgroundImageChange('')}
-                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div className="mt-3 relative group">
+                    <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden border-2 border-gray-200">
+                      <img
+                        src={backgroundImage}
+                        alt="Aperçu de l'image de fond"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage introuvable%3C/text%3E%3C/svg%3E';
+                        }}
+                      />
+                      <button
+                        onClick={() => onBackgroundImageChange('')}
+                        className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                        title="Supprimer l'image"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 text-center">
+                      Aperçu de l'image de fond (survolez pour supprimer)
+                    </p>
                   </div>
                 )}
               </div>
@@ -202,7 +285,7 @@ export default function EmailTemplateEditor({
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Palette className="w-4 h-4 inline mr-1" />
-                  Couleur de fond
+                  Couleur de fond derrière le texte
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -219,24 +302,25 @@ export default function EmailTemplateEditor({
                     placeholder="#ffffff"
                   />
                 </div>
-              </div>
 
-              {/* Opacity */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Opacité de l'arrière-plan : {opacity}%
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={opacity}
-                  onChange={(e) => onOpacityChange(parseInt(e.target.value))}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>Transparent</span>
-                  <span>Opaque</span>
+                {/* Opacité de la couleur de fond */}
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Opacité de la couleur : {colorOpacity}%
+                    {backgroundImage && <span className="text-xs text-gray-500 ml-2">(pour voir l'image en transparence)</span>}
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={colorOpacity}
+                    onChange={(e) => onColorOpacityChange?.(parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>Transparent (voir l'image)</span>
+                    <span>Opaque (cacher l'image)</span>
+                  </div>
                 </div>
               </div>
             </div>

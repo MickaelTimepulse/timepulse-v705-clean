@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Eye, Trash2, Download, Search, Filter, Edit2, Save, X, Mail, Send, Plus, Info } from 'lucide-react';
+import { Eye, Trash2, Download, Search, Filter, Edit2, Save, X, Mail, Send, Plus, Info, Users, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatAthleteName } from '../lib/formatters';
 import { loadCountries, type Country } from '../lib/countries';
+import { refreshFFALicensesForRace } from '../lib/ffa-webservice';
 
 interface Entry {
   id: string;
@@ -13,6 +14,9 @@ interface Entry {
   bib_number: number | null;
   created_at: string;
   source: string;
+  team_id?: string;
+  management_code?: string;
+  license_number?: string;
   athletes: {
     first_name: string;
     last_name: string;
@@ -20,6 +24,7 @@ interface Entry {
     birthdate: string;
     gender: string;
     license_club: string | null;
+    license_number: string | null;
     nationality: string | null;
     is_anonymous: boolean;
   };
@@ -29,7 +34,17 @@ interface Entry {
   entry_payments: Array<{
     payment_status: string;
     amount_paid: number;
+    payment_method?: string;
   }>;
+}
+
+interface Team {
+  id: string;
+  name: string;
+  team_type: string;
+  bib_numbers: string[];
+  current_members_count: number;
+  captain_email: string | null;
 }
 
 interface RaceOption {
@@ -62,19 +77,23 @@ interface RegistrationOption {
 interface EntriesListProps {
   eventId: string;
   races: Array<{ id: string; name: string }>;
+  event?: any;
 }
 
-export default function EntriesList({ eventId, races }: EntriesListProps) {
+export default function EntriesList({ eventId, races, event }: EntriesListProps) {
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [teams, setTeams] = useState<Record<string, Team>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRace, setFilterRace] = useState('all');
+
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPayment, setFilterPayment] = useState('all');
   const [filterGender, setFilterGender] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterClub, setFilterClub] = useState('all');
   const [filterSource, setFilterSource] = useState('all');
+  const [filterTeam, setFilterTeam] = useState('all');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -93,6 +112,9 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
     options: RaceOption[];
     registrationOptions: RegistrationOption[];
   }>({ entry: null, options: [], registrationOptions: [] });
+  const [showFFARefreshModal, setShowFFARefreshModal] = useState(false);
+  const [refreshingFFA, setRefreshingFFA] = useState(false);
+  const [ffaRefreshResults, setFfaRefreshResults] = useState<any>(null);
 
   useEffect(() => {
     loadEntries();
@@ -104,6 +126,47 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
     setCountries(countriesData);
   };
 
+  const handleRefreshFFALicenses = async () => {
+    if (!filterRace || filterRace === 'all') {
+      alert('Veuillez sélectionner une course spécifique avant d\'actualiser les licences FFA');
+      return;
+    }
+
+    setShowFFARefreshModal(true);
+    setRefreshingFFA(true);
+    setFfaRefreshResults(null);
+
+    try {
+      const result = await refreshFFALicensesForRace(filterRace);
+      setFfaRefreshResults(result);
+
+      // Recharger les inscriptions
+      await loadEntries();
+    } catch (error: any) {
+      // Formater le message d'erreur pour qu'il soit lisible
+      const errorMessage = error.message || 'Erreur inconnue';
+
+      // Si c'est l'erreur PROx014 ou événement non déclaré
+      if (errorMessage.includes('Événement non déclaré') || errorMessage.includes('PROx014')) {
+        setFfaRefreshResults({
+          total: 0,
+          updated: 0,
+          errors: 1,
+          details: [{
+            athleteName: 'Configuration événement',
+            licenseNumber: 'N/A',
+            status: 'error',
+            message: errorMessage
+          }]
+        });
+      } else {
+        alert('Erreur lors de l\'actualisation des licences FFA : ' + errorMessage);
+      }
+    } finally {
+      setRefreshingFFA(false);
+    }
+  };
+
   const loadEntries = async () => {
     setLoading(true);
     try {
@@ -111,16 +174,74 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
         .from('entries')
         .select(`
           *,
-          athletes (*),
+          athletes (
+            id,
+            first_name,
+            last_name,
+            email,
+            birthdate,
+            gender,
+            license_club,
+            license_number,
+            license_id,
+            nationality,
+            is_anonymous,
+            ffa_relcod,
+            ffa_club_code,
+            ffa_club_name,
+            ffa_league,
+            ffa_league_abbr,
+            ffa_department,
+            ffa_department_abbr,
+            ffa_catcod,
+            pps_number,
+            pps_expiry_date
+          ),
           races (name),
-          entry_payments (payment_status, amount_paid)
+          entry_payments (payment_status, amount_paid, payment_method, paid_at)
         `)
         .eq('event_id', eventId)
         .order('created_at', { ascending: false })
         .limit(10000);
 
       if (error) throw error;
-      setEntries(data || []);
+
+      const allEntries = data || [];
+
+      const { data: teamMembersData } = await supabase
+        .from('team_members')
+        .select('entry_id, team_id')
+        .in('entry_id', allEntries.map(e => e.id));
+
+      const teamMemberMap: Record<string, string> = {};
+      if (teamMembersData) {
+        teamMembersData.forEach(tm => {
+          teamMemberMap[tm.entry_id] = tm.team_id;
+        });
+      }
+
+      const entriesWithTeams = allEntries.map(entry => ({
+        ...entry,
+        team_id: teamMemberMap[entry.id] || null
+      }));
+
+      const uniqueTeamIds = [...new Set(Object.values(teamMemberMap))];
+      if (uniqueTeamIds.length > 0) {
+        const { data: teamsData } = await supabase
+          .from('teams')
+          .select('id, name, team_type, bib_numbers, current_members_count, captain_email')
+          .in('id', uniqueTeamIds);
+
+        if (teamsData) {
+          const teamsMap: Record<string, Team> = {};
+          teamsData.forEach(team => {
+            teamsMap[team.id] = team;
+          });
+          setTeams(teamsMap);
+        }
+      }
+
+      setEntries(entriesWithTeams);
     } catch (error) {
       console.error('Error loading entries:', error);
     } finally {
@@ -151,6 +272,15 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
 
     setSaving(true);
     try {
+      // Convertir le code pays 3 lettres (FRA) en 2 lettres (FR) pour la sauvegarde
+      let nationalityForSave = editFormData.nationality as string;
+      if (nationalityForSave && nationalityForSave.length === 3) {
+        const country = countries.find(c => c.code === nationalityForSave);
+        if (country && country.alpha2_code) {
+          nationalityForSave = country.alpha2_code;
+        }
+      }
+
       const { error: athleteError } = await (supabase
         .from('athletes') as any)
         .update({
@@ -160,7 +290,8 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
           birthdate: editFormData.birthdate as string,
           gender: editFormData.gender as string,
           license_club: (editFormData.license_club as string) || null,
-          nationality: (editFormData.nationality as string) || null,
+          license_number: (editFormData.license_number as string) || null,
+          nationality: nationalityForSave || null,
           is_anonymous: (editFormData.is_anonymous as boolean) || false,
         } as any)
         .eq('id', editingEntry.athlete_id);
@@ -178,30 +309,34 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
 
       if (entryError) throw entryError;
 
-      if (editingEntry.entry_payments?.[0]) {
-        const { error: paymentError } = await (supabase
-          .from('entry_payments') as any)
-          .update({
-            payment_status: editFormData.payment_status as string,
-            amount_paid: parseFloat(editFormData.amount_paid as string) || 0,
-            paid_at:
-              editFormData.payment_status === 'paid'
-                ? new Date().toISOString()
-                : null,
-          } as any)
-          .eq('entry_id', editingEntry.id);
+      // Utiliser une fonction sécurisée pour l'upsert du paiement
+      const { error: paymentError } = await supabase.rpc('upsert_entry_payment', {
+        p_entry_id: editingEntry.id,
+        p_payment_status: editFormData.payment_status as string,
+        p_payment_method: (editFormData.payment_method as string) || null,
+        p_amount_paid: parseFloat(editFormData.amount_paid as string) || 0,
+        p_paid_at: editFormData.payment_status === 'paid' ? new Date().toISOString() : null,
+      });
 
-        if (paymentError) throw paymentError;
-      }
+      if (paymentError) throw paymentError;
 
-      const { error: deleteOptionsError } = await supabase
+      // Supprimer les anciennes options
+      console.log('=== Deleting old options for entry ===', editingEntry.id);
+      const { error: deleteOptionsError, count: deletedCount } = await supabase
         .from('registration_options')
         .delete()
-        .eq('entry_id', editingEntry.id);
+        .eq('entry_id', editingEntry.id)
+        .select();
 
-      if (deleteOptionsError) throw deleteOptionsError;
+      if (deleteOptionsError) {
+        console.error('Error deleting options:', deleteOptionsError);
+        throw deleteOptionsError;
+      }
+      console.log('=== Deleted options count ===', deletedCount);
 
+      // Insérer les nouvelles options
       if (Object.keys(selectedOptions).length > 0) {
+        console.log('=== Inserting new options ===', selectedOptions);
         const registrationOptionsData = Object.entries(selectedOptions).map(([optionId, selection]) => {
           const option = raceOptions.find(o => o.id === optionId);
           let pricePaid = option?.price_cents || 0;
@@ -223,11 +358,17 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
           };
         });
 
-        const { error: optionsError } = await supabase
+        console.log('=== Data to insert ===', registrationOptionsData);
+        const { error: optionsError, data: insertedData } = await supabase
           .from('registration_options')
-          .insert(registrationOptionsData as any);
+          .insert(registrationOptionsData as any)
+          .select();
 
-        if (optionsError) throw optionsError;
+        if (optionsError) {
+          console.error('Error inserting options:', optionsError);
+          throw optionsError;
+        }
+        console.log('=== Successfully inserted options ===', insertedData);
       }
 
       alert('Inscription mise à jour avec succès !');
@@ -327,16 +468,24 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
         .select('*')
         .eq('entry_id', registrationId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading registration options:', error);
+        throw error;
+      }
+
+      console.log('=== Loaded registration options ===', data);
       setRegistrationOptions(data || []);
 
+      // Créer le mapping des options sélectionnées
       const optionsMap: Record<string, { choiceId?: string; value?: string }> = {};
       (data || []).forEach((regOpt: any) => {
         optionsMap[regOpt.option_id] = {
           choiceId: regOpt.choice_id || undefined,
           value: regOpt.value || undefined,
         };
+        console.log(`Setting option ${regOpt.option_id} to choice ${regOpt.choice_id}`);
       });
+      console.log('=== Final options map ===', optionsMap);
       setSelectedOptions(optionsMap);
     } catch (err) {
       console.error('Error loading registration options:', err);
@@ -344,25 +493,43 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
   };
 
   const handleEditEntry = async (entry: Entry) => {
-    setEditingEntry(entry);
+    console.log('=== Editing entry ===', entry.id);
+
+    // Convertir le code pays 2 lettres (FR) en 3 lettres (FRA) si nécessaire
+    let nationalityCode = entry.athletes.nationality || 'FRA';
+    if (nationalityCode.length === 2) {
+      const country = countries.find(c => c.alpha2_code === nationalityCode.toUpperCase());
+      if (country) {
+        nationalityCode = country.code;
+      }
+    }
+
     setEditFormData({
-      first_name: entry.athletes.first_name,
-      last_name: entry.athletes.last_name,
-      email: entry.athletes.email,
-      birthdate: entry.athletes.birthdate,
-      gender: entry.athletes.gender,
+      first_name: entry.athletes.first_name || '',
+      last_name: entry.athletes.last_name || '',
+      email: entry.athletes.email || '',
+      birthdate: entry.athletes.birthdate || '',
+      gender: entry.athletes.gender || 'M',
       license_club: entry.athletes.license_club || '',
-      nationality: entry.athletes.nationality || 'FR',
+      license_number: entry.athletes.license_number || entry.athletes.license_id || '',
+      nationality: nationalityCode,
       is_anonymous: entry.athletes.is_anonymous || false,
-      category: entry.category,
-      status: entry.status,
+      category: entry.category || '',
+      status: entry.status || 'confirmed',
       bib_number: entry.bib_number || '',
-      payment_status: entry.entry_payments[0]?.payment_status || 'pending',
-      amount_paid: entry.entry_payments[0]?.amount_paid?.toString() || '0',
+      payment_status: entry.entry_payments?.[0]?.payment_status || 'pending',
+      payment_method: entry.entry_payments?.[0]?.payment_method || '',
+      amount_paid: entry.entry_payments?.[0]?.amount_paid?.toString() || '0',
     });
 
+    // Charger les options AVANT d'afficher le formulaire
+    console.log('=== Loading options for race ===', entry.race_id);
     await loadRaceOptions(entry.race_id);
+    console.log('=== Loading registration options for entry ===', entry.id);
     await loadRegistrationOptions(entry.id);
+
+    // Maintenant qu'on a tout chargé, on ouvre le formulaire
+    setEditingEntry(entry);
   };
 
   const getPaymentStatusLabel = (status: string) => {
@@ -422,17 +589,34 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
     return new Date(dateString).toLocaleDateString('fr-FR');
   };
 
+  const getTeamTypeIcon = (teamType: string) => {
+    if (teamType === 'homme' || teamType === 'men' || teamType === 'masculin') {
+      return { icon: '👨', color: 'bg-blue-100 text-blue-700 border-blue-300', label: 'Homme' };
+    } else if (teamType === 'femme' || teamType === 'women' || teamType === 'féminin') {
+      return { icon: '👩', color: 'bg-pink-100 text-pink-700 border-pink-300', label: 'Femme' };
+    } else {
+      return { icon: '👥', color: 'bg-purple-100 text-purple-700 border-purple-300', label: 'Mixte' };
+    }
+  };
+
   const uniqueClubs = Array.from(new Set(entries.map(e => e.athletes.license_club).filter(Boolean)));
   const uniqueCategories = Array.from(new Set(entries.map(e => e.category).filter(Boolean)));
+  const uniqueTeams = Array.from(new Set(entries.filter(e => e.team_id).map(e => {
+    const team = e.team_id ? teams[e.team_id] : null;
+    return team ? { id: team.id, name: team.name } : null;
+  }).filter(Boolean))) as Array<{ id: string; name: string }>;
 
   const filteredEntries = entries.filter((entry) => {
+    const team = entry.team_id ? teams[entry.team_id] : null;
+
     const searchMatch =
       searchTerm === '' ||
       entry.athletes.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       entry.athletes.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       entry.athletes.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       entry.athletes.license_club?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      entry.bib_number?.toString().includes(searchTerm);
+      entry.bib_number?.toString().includes(searchTerm) ||
+      (team && team.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const raceMatch = filterRace === 'all' || entry.race_id === filterRace;
     const statusMatch = filterStatus === 'all' || entry.status === filterStatus;
@@ -443,8 +627,9 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
     const categoryMatch = filterCategory === 'all' || entry.category === filterCategory;
     const clubMatch = filterClub === 'all' || entry.athletes.license_club === filterClub;
     const sourceMatch = filterSource === 'all' || entry.source === filterSource;
+    const teamMatch = filterTeam === 'all' || entry.team_id === filterTeam;
 
-    return searchMatch && raceMatch && statusMatch && paymentMatch && genderMatch && categoryMatch && clubMatch && sourceMatch;
+    return searchMatch && raceMatch && statusMatch && paymentMatch && genderMatch && categoryMatch && clubMatch && sourceMatch && teamMatch;
   });
 
   const exportToCSV = async () => {
@@ -463,13 +648,29 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
     for (const raceId of allRaceIds) {
       const { data: options } = await supabase
         .from('race_options')
-        .select(`*, choices:race_option_choices(*)`)
+        .select('*')
         .eq('race_id', raceId)
         .eq('active', true)
         .order('display_order');
 
-      if (options) {
-        raceOptionsMap.set(raceId, options);
+      if (options && options.length > 0) {
+        // Récupérer les choix pour chaque option
+        const optionsWithChoices = await Promise.all(
+          options.map(async (option) => {
+            const { data: choices } = await supabase
+              .from('race_option_choices')
+              .select('*')
+              .eq('option_id', option.id)
+              .order('display_order');
+
+            return {
+              ...option,
+              choices: choices || []
+            };
+          })
+        );
+
+        raceOptionsMap.set(raceId, optionsWithChoices);
       }
     }
 
@@ -481,15 +682,38 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
 
     const entryOptionsMap = new Map<string, RegistrationOption[]>();
     for (const entry of filteredEntries) {
-      const { data: regOptions } = await supabase
+      const { data: regOptions, error: optError } = await supabase
         .from('registration_options')
         .select('*')
         .eq('entry_id', entry.id);
 
-      if (regOptions) {
+      if (optError) {
+        console.error('Erreur récupération options pour entry', entry.id, ':', optError);
+      }
+
+      if (regOptions && regOptions.length > 0) {
+        console.log('Options trouvées pour', entry.athletes.first_name, entry.athletes.last_name, ':', regOptions);
         entryOptionsMap.set(entry.id, regOptions);
       }
     }
+
+    console.log('=== DEBUG CSV EXPORT ===');
+    console.log('Total entries avec options:', entryOptionsMap.size, '/', filteredEntries.length);
+    console.log('Race options map:', Array.from(raceOptionsMap.entries()).map(([raceId, opts]) => ({
+      raceId,
+      optionsCount: opts.length,
+      options: opts.map(o => ({
+        id: o.id,
+        label: o.label,
+        choicesCount: o.choices?.length || 0,
+        choices: o.choices?.map((c: any) => ({ id: c.id, label: c.label }))
+      }))
+    })));
+    console.log('Sorted option labels:', sortedOptionLabels);
+    console.log('Sample entry options:', Array.from(entryOptionsMap.entries()).slice(0, 2).map(([entryId, opts]) => ({
+      entryId,
+      options: opts.map(o => ({ option_id: o.option_id, choice_id: o.choice_id, value: o.value }))
+    })));
 
     const baseHeaders = [
       'Dossard',
@@ -499,19 +723,37 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
       'Date de naissance',
       'Âge',
       'Genre',
+      'Nationalité',
       'Club/Association',
+      'N° Licence',
+      'Équipe',
+      'Type équipe',
       'Épreuve',
       'Catégorie',
-      'Statut',
-      'Paiement',
-      'Montant (€)',
+      'Statut inscription',
+      'Statut paiement',
+      'Type paiement',
+      'Montant payé (€)',
       'Date inscription',
+      'Heure inscription',
       'Source',
+      'Code gestion',
+      'Type Licence FFA (RELCOD)',
+      'Code Club FFA',
+      'Nom Club FFA',
+      'Ligue FFA (abrégé)',
+      'Ligue FFA',
+      'Département FFA (abrégé)',
+      'Département FFA',
+      'CAT FFA',
+      'Numéro PSP',
+      'Date Expiration PSP',
     ];
 
     const headers = [...baseHeaders, ...sortedOptionLabels];
 
     const rows = filteredEntries.map((entry) => {
+      const team = entry.team_id ? teams[entry.team_id] : null;
       const registrationOptions = entryOptionsMap.get(entry.id) || [];
       const raceOptions = raceOptionsMap.get(entry.race_id) || [];
 
@@ -522,13 +764,17 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
         if (option) {
           let value = '';
 
-          if (regOpt.choice_id && option.choices) {
-            const choice = option.choices.find(c => c.id === regOpt.choice_id);
+          if (regOpt.choice_id) {
+            // Trouver le choix dans les choices de l'option
+            const choices = option.choices || [];
+            const choice = choices.find((c: any) => c.id === regOpt.choice_id);
             if (choice) {
               value = choice.label;
-              if (choice.price_modifier_cents !== 0) {
+              if (choice.price_modifier_cents && choice.price_modifier_cents !== 0) {
                 value += ` (${choice.price_modifier_cents > 0 ? '+' : ''}${(choice.price_modifier_cents / 100).toFixed(2)}€)`;
               }
+            } else {
+              console.warn('Choice not found for', regOpt.choice_id, 'in option', option.label);
             }
           } else if (regOpt.value) {
             value = regOpt.value;
@@ -540,9 +786,43 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
             value += ` (${(regOpt.price_paid_cents / 100).toFixed(2)}€)`;
           }
 
-          optionValues[option.label] = value;
+          // Si une valeur existe déjà pour cette option, on la concatène (cas des choix multiples)
+          if (value) {
+            if (optionValues[option.label]) {
+              optionValues[option.label] += `, ${value}`;
+            } else {
+              optionValues[option.label] = value;
+            }
+          }
+        } else {
+          console.warn('Option not found for', regOpt.option_id, 'in race options');
         }
       });
+
+      const country = countries.find(c => c.code === entry.athletes.nationality);
+      const inscriptionDate = new Date(entry.created_at);
+      const teamTypeInfo = team ? getTeamTypeIcon(team.team_type) : null;
+
+      const payment = entry.entry_payments && entry.entry_payments.length > 0 ? entry.entry_payments[0] : null;
+      const paymentStatus = payment?.payment_status || 'pending';
+      const paymentMethod = payment?.payment_method ||
+        (paymentStatus === 'paid' ? 'Carte bancaire' :
+         paymentStatus === 'free' ? 'Gratuit' :
+         paymentStatus === 'comped' ? 'Offert' : 'En attente');
+
+      const licenseNumber = entry.athletes.license_number || entry.athletes.license_id || '';
+
+      let amountPaid = '0';
+      if (payment?.amount_paid) {
+        const amount = payment.amount_paid;
+        if (typeof amount === 'number') {
+          amountPaid = amount.toString();
+        } else {
+          amountPaid = amount;
+        }
+      } else if (payment?.payment_status === 'free') {
+        amountPaid = '0';
+      }
 
       const baseRow = [
         entry.bib_number || '',
@@ -552,14 +832,31 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
         entry.athletes.birthdate,
         calculateAge(entry.athletes.birthdate),
         entry.athletes.gender === 'M' ? 'Homme' : entry.athletes.gender === 'F' ? 'Femme' : 'Autre',
-        entry.athletes.license_club || '',
+        country ? country.name : entry.athletes.nationality || '',
+        entry.athletes.license_club || entry.athletes.ffa_club_name || '',
+        licenseNumber,
+        team ? team.name : '',
+        team && teamTypeInfo ? teamTypeInfo.label : '',
         entry.races.name,
         entry.category,
         getStatusLabel(entry.status),
-        getPaymentStatusLabel(entry.entry_payments[0]?.payment_status || 'pending'),
-        entry.entry_payments[0]?.amount_paid?.toString() || '0',
-        formatDate(entry.created_at),
+        getPaymentStatusLabel(paymentStatus),
+        paymentMethod,
+        amountPaid,
+        inscriptionDate.toLocaleDateString('fr-FR'),
+        inscriptionDate.toLocaleTimeString('fr-FR'),
         entry.source === 'manual' ? 'Manuelle' : entry.source === 'online' ? 'En ligne' : entry.source,
+        entry.management_code || '',
+        entry.athletes.ffa_relcod || '',
+        entry.athletes.ffa_club_code || '',
+        entry.athletes.ffa_club_name || '',
+        entry.athletes.ffa_league_abbr || '',
+        entry.athletes.ffa_league || '',
+        entry.athletes.ffa_department_abbr || '',
+        entry.athletes.ffa_department || '',
+        entry.athletes.ffa_catcod || '',
+        entry.athletes.pps_number || '',
+        entry.athletes.pps_expiry_date ? new Date(entry.athletes.pps_expiry_date).toLocaleDateString('fr-FR') : '',
       ];
 
       const optionRow = sortedOptionLabels.map(label => optionValues[label] || '');
@@ -582,7 +879,6 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
     document.body.appendChild(a);
     a.click();
 
-    // Nettoyage différé pour éviter les erreurs de timing
     setTimeout(() => {
       try {
         if (a.parentNode === document.body) {
@@ -605,6 +901,26 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
 
   return (
     <div className="space-y-6">
+      {/* Message de debug très visible */}
+      {!event && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 px-4 py-3 rounded mb-4">
+          <p className="font-bold">⚠️ DEBUG: L'événement n'est pas chargé</p>
+        </div>
+      )}
+      {event && !event.ffa_affiliated && (
+        <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-800 px-4 py-3 rounded mb-4">
+          <p className="font-bold">ℹ️ DEBUG: Événement non affilié FFA</p>
+          <p className="text-sm">ffa_affiliated = {String(event.ffa_affiliated)}</p>
+        </div>
+      )}
+      {event && event.ffa_affiliated && (
+        <div className="bg-green-100 border-l-4 border-green-500 text-green-800 px-4 py-3 rounded mb-4">
+          <p className="font-bold">✅ DEBUG: Événement FFA détecté !</p>
+          <p className="text-sm">Code CalOrg: {event.ffa_calorg_code}</p>
+          <p className="text-sm font-bold">→ Le bouton BLEU devrait être visible à droite du bouton "Exporter CSV"</p>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">
@@ -614,13 +930,26 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
             Total : {entries.length} inscription{entries.length > 1 ? 's' : ''}
           </p>
         </div>
-        <button
-          onClick={exportToCSV}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          Exporter CSV
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          {event?.ffa_affiliated && (
+            <button
+              onClick={handleRefreshFFALicenses}
+              disabled={refreshingFFA || !filterRace || filterRace === 'all'}
+              title={!filterRace || filterRace === 'all' ? 'Veuillez sélectionner une épreuve spécifique' : 'Actualiser les licences FFA pour cette épreuve'}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshingFFA ? 'animate-spin' : ''}`} />
+              {refreshingFFA ? 'Actualisation...' : 'Actualiser les licences FFA'}
+            </button>
+          )}
+          <button
+            onClick={exportToCSV}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
+          >
+            <Download className="w-4 h-4" />
+            Exporter CSV
+          </button>
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -629,7 +958,7 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Rechercher par nom, email, club ou dossard..."
+              placeholder="Rechercher par nom, email, équipe, club ou dossard..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
@@ -731,6 +1060,22 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
             </div>
 
             <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Équipe</label>
+              <select
+                value={filterTeam}
+                onChange={(e) => setFilterTeam(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              >
+                <option value="all">Toutes les équipes</option>
+                {uniqueTeams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Source d'inscription</label>
               <select
                 value={filterSource}
@@ -754,6 +1099,7 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
                   setFilterCategory('all');
                   setFilterClub('all');
                   setFilterSource('all');
+                  setFilterTeam('all');
                   setSearchTerm('');
                 }}
                 className="text-sm text-pink-600 hover:text-pink-700 font-medium"
@@ -782,6 +1128,9 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
                     Athlète
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Équipe
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Club
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -802,7 +1151,11 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredEntries.map((entry) => (
+                {filteredEntries.map((entry) => {
+                  const team = entry.team_id ? teams[entry.team_id] : null;
+                  const teamTypeInfo = team ? getTeamTypeIcon(team.team_type) : null;
+
+                  return (
                   <tr key={entry.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-medium text-gray-900">
@@ -814,6 +1167,24 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
                         {formatAthleteName(entry.athletes.first_name, entry.athletes.last_name)}
                       </div>
                       <div className="text-sm text-gray-500">{entry.athletes.email}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {team ? (
+                        <>
+                          <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                            <Users className="w-4 h-4 text-purple-600" />
+                            {team.name}
+                          </div>
+                          {teamTypeInfo && (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${teamTypeInfo.color}`}>
+                              <span>{teamTypeInfo.icon}</span>
+                              <span>{teamTypeInfo.label}</span>
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-600">
@@ -912,7 +1283,8 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1213,9 +1585,21 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
                     />
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">N° Licence</label>
+                    <input
+                      type="text"
+                      value={editFormData.license_number || ''}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, license_number: e.target.value })
+                      }
+                      placeholder="Numéro de licence"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Nationalité</label>
                     <select
-                      value={(editFormData.nationality as string) || 'FRA'}
+                      value={editFormData.nationality || 'FRA'}
                       onChange={(e) =>
                         setEditFormData({ ...editFormData, nationality: e.target.value })
                       }
@@ -1263,6 +1647,17 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                     >
                       <option value="SE">Senior (SE)</option>
+                      <option value="M0">Master 0 (M0)</option>
+                      <option value="M1">Master 1 (M1)</option>
+                      <option value="M2">Master 2 (M2)</option>
+                      <option value="M3">Master 3 (M3)</option>
+                      <option value="M4">Master 4 (M4)</option>
+                      <option value="M5">Master 5 (M5)</option>
+                      <option value="M6">Master 6 (M6)</option>
+                      <option value="M7">Master 7 (M7)</option>
+                      <option value="M8">Master 8 (M8)</option>
+                      <option value="M9">Master 9 (M9)</option>
+                      <option value="M10">Master 10 (M10)</option>
                       <option value="V1">V1 (40-49 ans)</option>
                       <option value="V2">V2 (50-59 ans)</option>
                       <option value="V3">V3 (60-69 ans)</option>
@@ -1340,6 +1735,26 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                     />
                   </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Mode de paiement
+                    </label>
+                    <select
+                      value={editFormData.payment_method || ''}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, payment_method: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                    >
+                      <option value="">Sélectionner un mode de paiement</option>
+                      <option value="card">Carte bancaire (CB)</option>
+                      <option value="check">Chèque</option>
+                      <option value="transfer">Virement bancaire</option>
+                      <option value="cash">Espèces</option>
+                      <option value="manual_organizer">Manuel par organisateur</option>
+                      <option value="manual_timepulse">Manuel par Timepulse</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -1374,25 +1789,31 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
                             )}
 
                             {option.is_question && option.choices && option.choices.length > 0 ? (
-                              <select
-                                value={selectedOptions[option.id]?.choiceId || ''}
-                                onChange={(e) => setSelectedOptions({
-                                  ...selectedOptions,
-                                  [option.id]: { choiceId: e.target.value }
-                                })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                                required={option.is_required}
-                              >
-                                <option value="">Sélectionnez une option...</option>
-                                {option.choices.map((choice) => (
-                                  <option key={choice.id} value={choice.id}>
-                                    {choice.label}
-                                    {choice.price_modifier_cents !== 0 && (
-                                      ` (${choice.price_modifier_cents > 0 ? '+' : ''}${(choice.price_modifier_cents / 100).toFixed(2)}€)`
-                                    )}
-                                  </option>
-                                ))}
-                              </select>
+                              <>
+                                {console.log(`Option ${option.label} (${option.id}): selectedValue =`, selectedOptions[option.id]?.choiceId)}
+                                <select
+                                  value={selectedOptions[option.id]?.choiceId || ''}
+                                  onChange={(e) => {
+                                    console.log('Changing option', option.label, 'to', e.target.value);
+                                    setSelectedOptions({
+                                      ...selectedOptions,
+                                      [option.id]: { choiceId: e.target.value }
+                                    });
+                                  }}
+                                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                                  required={option.is_required}
+                                >
+                                  <option value="">Sélectionnez une option...</option>
+                                  {option.choices.map((choice) => (
+                                    <option key={choice.id} value={choice.id}>
+                                      {choice.label}
+                                      {choice.price_modifier_cents !== 0 && (
+                                        ` (${choice.price_modifier_cents > 0 ? '+' : ''}${(choice.price_modifier_cents / 100).toFixed(2)}€)`
+                                      )}
+                                    </option>
+                                  ))}
+                                </select>
+                              </>
                             ) : (
                               <input
                                 type="text"
@@ -1571,6 +1992,119 @@ export default function EntriesList({ eventId, races }: EntriesListProps) {
                 Fermer
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modale de résultats d'actualisation FFA */}
+      {showFFARefreshModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-white">
+                Actualisation des licences FFA
+              </h3>
+              <button
+                onClick={() => setShowFFARefreshModal(false)}
+                disabled={refreshingFFA}
+                className="text-white hover:bg-blue-800 rounded-lg p-2 transition-colors disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {refreshingFFA ? (
+                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <RefreshCw className="w-12 h-12 text-blue-600 animate-spin" />
+                  <p className="text-lg text-gray-700">
+                    Actualisation des licences en cours...
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Cette opération peut prendre quelques minutes selon le nombre d'inscriptions.
+                  </p>
+                </div>
+              ) : ffaRefreshResults ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">Total traité</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {ffaRefreshResults.total}
+                      </p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">Actualisés</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {ffaRefreshResults.updated}
+                      </p>
+                    </div>
+                    <div className="bg-red-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">Erreurs</p>
+                      <p className="text-2xl font-bold text-red-600">
+                        {ffaRefreshResults.errors}
+                      </p>
+                    </div>
+                  </div>
+
+                  {ffaRefreshResults.details && ffaRefreshResults.details.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-3">
+                        Détails par athlète
+                      </h4>
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {ffaRefreshResults.details.map((detail: any, index: number) => (
+                          <div
+                            key={index}
+                            className={`p-3 rounded-lg border ${
+                              detail.status === 'success'
+                                ? 'bg-green-50 border-green-200'
+                                : 'bg-red-50 border-red-200'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  {detail.athleteName}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Licence : {detail.licenseNumber}
+                                </p>
+                                {detail.message && (
+                                  <p className="text-sm text-gray-600 mt-1 whitespace-pre-line">
+                                    {detail.message}
+                                  </p>
+                                )}
+                              </div>
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  detail.status === 'success'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}
+                              >
+                                {detail.status === 'success' ? 'Réussi' : 'Erreur'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            {!refreshingFFA && (
+              <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t flex justify-end">
+                <button
+                  onClick={() => setShowFFARefreshModal(false)}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Fermer
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

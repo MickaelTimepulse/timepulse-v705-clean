@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X, LogIn, ChevronDown, Trophy, Video } from 'lucide-react';
 
-// Force rebuild 2025-11-24 - Chrome cache fix
+// Force rebuild 2026-01-06 - Chrome breakpoint fix sm:flex
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLoginMenu, setShowLoginMenu] = useState(false);
@@ -19,17 +19,17 @@ export default function Header() {
             />
           </Link>
 
-          <div className="hidden md:flex items-center space-x-1">
+          <div className="hidden sm:!flex items-center space-x-1">
             <Link
               to="/videos"
-              className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 font-medium transition-all rounded-lg"
+              className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 font-medium transition-all rounded-lg text-sm lg:text-base lg:px-4"
             >
               <Video className="w-4 h-4" />
               <span>Vidéos</span>
             </Link>
             <Link
               to="/resultats"
-              className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 font-medium transition-all rounded-lg"
+              className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 font-medium transition-all rounded-lg text-sm lg:text-base lg:px-4"
             >
               <Trophy className="w-4 h-4" />
               <span>Résultats</span>
@@ -38,7 +38,7 @@ export default function Header() {
               <button
                 onClick={() => setShowLoginMenu(!showLoginMenu)}
                 onBlur={() => setTimeout(() => setShowLoginMenu(false), 200)}
-                className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 font-medium transition-all rounded-lg"
+                className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 font-medium transition-all rounded-lg text-sm lg:text-base lg:px-4"
               >
                 <LogIn className="w-4 h-4" />
                 <span>Connexion</span>
@@ -75,7 +75,7 @@ export default function Header() {
 
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-xl hover:bg-gray-100 transition-colors"
+            className="sm:hidden p-2 rounded-xl hover:bg-gray-100 transition-colors"
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>

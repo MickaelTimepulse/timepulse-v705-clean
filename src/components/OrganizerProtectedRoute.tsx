@@ -93,11 +93,14 @@ export default function OrganizerProtectedRoute({ children }: OrganizerProtected
         }
       } else {
         console.log('[OrganizerProtectedRoute] No Supabase session');
+        console.log('[OrganizerProtectedRoute] 💡 HINT: If you are an admin, you may need to logout and login again to refresh your session');
       }
 
       console.log('[OrganizerProtectedRoute] ❌ Authentication failed - redirecting to login');
+      setIsAuthenticated(false);
     } catch (error) {
       console.error('[OrganizerProtectedRoute] Auth check error:', error);
+      setIsAuthenticated(false);
     } finally {
       setLoading(false);
     }

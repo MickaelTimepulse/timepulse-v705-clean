@@ -100,6 +100,11 @@ export default function RelaySegmentsManager({ raceId, isTeamRace }: RelaySegmen
   };
 
   const saveSegments = async () => {
+    if (segments.length === 0) {
+      alert('⚠️ Veuillez ajouter au moins un segment avant d\'enregistrer.');
+      return;
+    }
+
     setSaving(true);
     try {
       // Delete all existing segments
@@ -114,34 +119,43 @@ export default function RelaySegmentsManager({ raceId, isTeamRace }: RelaySegmen
       }
 
       // Insert new segments
-      if (segments.length > 0) {
-        const segmentsToInsert = segments.map(seg => ({
-          race_id: raceId,
-          segment_order: seg.segment_order,
-          name: seg.name,
-          distance: parseFloat(seg.distance.toString()),
-          discipline: seg.discipline,
-          custom_discipline: seg.custom_discipline || null,
-          icon: seg.icon,
-          color: seg.color,
-          description: seg.description || null,
-        }));
+      const segmentsToInsert = segments.map(seg => ({
+        race_id: raceId,
+        segment_order: seg.segment_order,
+        name: seg.name,
+        distance: parseFloat(seg.distance.toString()),
+        discipline: seg.discipline,
+        custom_discipline: seg.custom_discipline || null,
+        icon: seg.icon,
+        color: seg.color,
+        description: seg.description || null,
+      }));
 
-        const { error: insertError } = await supabase
-          .from('relay_segments')
-          .insert(segmentsToInsert);
+      const { error: insertError } = await supabase
+        .from('relay_segments')
+        .insert(segmentsToInsert);
 
-        if (insertError) {
-          console.error('Error inserting segments:', insertError);
-          throw insertError;
-        }
+      if (insertError) {
+        console.error('Error inserting segments:', insertError);
+        throw insertError;
       }
 
-      alert('Segments de relais enregistrés avec succès !');
+      // Update race distance with total
+      const totalDistance = getTotalDistance();
+      const { error: updateError } = await supabase
+        .from('races')
+        .update({ distance: totalDistance })
+        .eq('id', raceId);
+
+      if (updateError) {
+        console.error('Error updating race distance:', updateError);
+      }
+
+      alert('✅ Segments enregistrés avec succès ! Distance totale : ' + totalDistance.toFixed(3) + ' km');
       await loadSegments();
     } catch (error: any) {
       console.error('Error saving segments:', error);
-      alert(`Erreur lors de l'enregistrement des segments: ${error.message || 'Erreur inconnue'}`);
+      alert(`❌ Erreur lors de l'enregistrement des segments: ${error.message || 'Erreur inconnue'}`);
     } finally {
       setSaving(false);
     }
@@ -303,9 +317,12 @@ export default function RelaySegmentsManager({ raceId, isTeamRace }: RelaySegmen
 
       {/* Info */}
       <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <p className="text-sm text-blue-900">
+        <p className="text-sm text-blue-900 mb-2">
           <strong>💡 Conseil :</strong> Pour un Ekiden classique de 42,195 km, vous pouvez créer 6 segments :
           5 km, 10 km, 5 km, 10 km, 5 km, et 7,195 km.
+        </p>
+        <p className="text-sm text-blue-900">
+          <strong>ℹ️ Info :</strong> La distance totale de l'épreuve sera automatiquement mise à jour avec la somme des segments lors de l'enregistrement.
         </p>
       </div>
     </div>

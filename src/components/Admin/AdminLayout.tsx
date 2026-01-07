@@ -104,7 +104,6 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
 
     // Communication
     { icon: Paintbrush, label: 'Gestionnaire d\'Emails', path: '/admin/email-manager', section: 'communication', module: 'email', permission: 'view' },
-    { icon: MailOpen, label: 'Templates', path: '/admin/email-templates', section: 'communication', module: 'email', permission: 'send' },
     { icon: BookOpen, label: 'Variables', path: '/admin/email-variables', section: 'communication', module: 'email', permission: 'send' },
     { icon: Image, label: 'Assets', path: '/admin/email-assets', section: 'communication', module: 'email', permission: 'view' },
     { icon: LineChart, label: 'Monitoring Emails', path: '/admin/email-monitoring', section: 'communication', module: 'email', permission: 'view' },
@@ -114,6 +113,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
     { icon: FileCode, label: 'Pages Services', path: '/admin/services', section: 'website', module: 'pages', permission: 'view' },
     { icon: Shield, label: 'Page d\'Accueil', path: '/admin/homepage-features', section: 'website', module: 'pages', permission: 'view' },
     { icon: FileText, label: 'Pages statiques', path: '/admin/static-pages', section: 'website', module: 'pages', permission: 'view' },
+    { icon: FileText, label: 'Formulaires', path: '/admin/custom-forms', section: 'website', module: 'pages', permission: 'view' },
     { icon: Video, label: 'Vidéos', path: '/admin/videos', section: 'website', module: 'pages', permission: 'view' },
 
     // Administration système

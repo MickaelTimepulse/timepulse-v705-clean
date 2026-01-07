@@ -44,17 +44,34 @@ export interface ExportEntry {
   status: string;
   registrationDate: string;
   licenseNumber?: string;
+  licenseType?: string;
+  federation?: string;
   club?: string;
   pspNumber?: string;
   pspExpiryDate?: string;
+  ffaRelcod?: string;
+  ffaClubCode?: string;
+  ffaLeagueAbbr?: string;
+  ffaDepartmentAbbr?: string;
+  ffaCatcod?: string;
   emergencyContact?: string;
   emergencyPhone?: string;
+  options?: Record<string, string>;
 }
 
 /**
  * Exporte les inscriptions au format CSV (Excel)
  */
 export function exportToCSV(entries: ExportEntry[], filename: string = 'inscriptions.csv'): void {
+  // Détecter toutes les options disponibles
+  const allOptionKeys = new Set<string>();
+  entries.forEach(entry => {
+    if (entry.options) {
+      Object.keys(entry.options).forEach(key => allOptionKeys.add(key));
+    }
+  });
+  const optionKeys = Array.from(allOptionKeys).sort();
+
   const headers = [
     'Dossard',
     'Nom',
@@ -70,34 +87,56 @@ export function exportToCSV(entries: ExportEntry[], filename: string = 'inscript
     'Statut',
     'Date Inscription',
     'Numéro Licence',
+    'Type de Licence',
+    'Fédération',
     'Club',
+    'Code Type Licence FFA (RELCOD)',
+    'Code Club Maître FFA',
+    'Ligue FFA',
+    'Département FFA',
+    'CAT FFA',
     'Numéro PSP',
     'Date Expiration PSP',
     'Contact Urgence',
     'Téléphone Urgence',
+    ...optionKeys,
   ];
 
-  const rows = entries.map(entry => [
-    entry.bibNumber,
-    entry.lastName,
-    entry.firstName,
-    entry.gender,
-    entry.birthDate,
-    entry.nationality,
-    entry.email,
-    entry.phone,
-    entry.category,
-    entry.raceName,
-    entry.price.toFixed(2),
-    entry.status,
-    new Date(entry.registrationDate).toLocaleDateString('fr-FR'),
-    entry.licenseNumber || '',
-    entry.club || '',
-    entry.pspNumber || '',
-    entry.pspExpiryDate ? new Date(entry.pspExpiryDate).toLocaleDateString('fr-FR') : '',
-    entry.emergencyContact || '',
-    entry.emergencyPhone || '',
-  ]);
+  const rows = entries.map(entry => {
+    const baseRow = [
+      entry.bibNumber,
+      entry.lastName,
+      entry.firstName,
+      entry.gender,
+      entry.birthDate,
+      entry.nationality,
+      entry.email,
+      entry.phone,
+      entry.category,
+      entry.raceName,
+      entry.price.toFixed(2),
+      entry.status,
+      new Date(entry.registrationDate).toLocaleDateString('fr-FR'),
+      entry.licenseNumber || '',
+      entry.licenseType || '',
+      entry.federation || '',
+      entry.club || '',
+      entry.ffaRelcod || '',
+      entry.ffaClubCode || '',
+      entry.ffaLeagueAbbr || '',
+      entry.ffaDepartmentAbbr || '',
+      entry.ffaCatcod || '',
+      entry.pspNumber || '',
+      entry.pspExpiryDate ? new Date(entry.pspExpiryDate).toLocaleDateString('fr-FR') : '',
+      entry.emergencyContact || '',
+      entry.emergencyPhone || '',
+    ];
+
+    // Ajouter les valeurs des options
+    const optionValues = optionKeys.map(key => entry.options?.[key] || '');
+
+    return [...baseRow, ...optionValues];
+  });
 
   const csvContent = [
     headers.join(';'), // Utiliser point-virgule pour Excel français

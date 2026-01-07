@@ -58,6 +58,8 @@ const TEAM_TYPES = [
 
 export default function RaceTeamConfig({ raceId, isTeamRace, teamConfig, onChange }: RaceTeamConfigProps) {
   const [config, setConfig] = useState<TeamConfig>(teamConfig || DEFAULT_CONFIG);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string>('');
 
   useEffect(() => {
     if (teamConfig) {
@@ -65,14 +67,34 @@ export default function RaceTeamConfig({ raceId, isTeamRace, teamConfig, onChang
     }
   }, [teamConfig]);
 
-  const updateConfig = (updates: Partial<TeamConfig>) => {
+  const updateConfig = async (updates: Partial<TeamConfig>) => {
     const newConfig = { ...config, ...updates };
     setConfig(newConfig);
-    onChange(isTeamRace, newConfig);
+    setSaving(true);
+    setSaveMessage('');
+    try {
+      await onChange(isTeamRace, newConfig);
+      setSaveMessage('✅ Configuration sauvegardée');
+      setTimeout(() => setSaveMessage(''), 3000);
+    } catch (error) {
+      setSaveMessage('❌ Erreur lors de la sauvegarde');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const toggleTeamRace = (enabled: boolean) => {
-    onChange(enabled, config);
+  const toggleTeamRace = async (enabled: boolean) => {
+    setSaving(true);
+    setSaveMessage('');
+    try {
+      await onChange(enabled, config);
+      setSaveMessage(enabled ? '✅ Course par équipes activée' : '✅ Course par équipes désactivée');
+      setTimeout(() => setSaveMessage(''), 3000);
+    } catch (error) {
+      setSaveMessage('❌ Erreur lors de la sauvegarde');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleTeamType = (type: string) => {
@@ -86,6 +108,17 @@ export default function RaceTeamConfig({ raceId, isTeamRace, teamConfig, onChang
 
   return (
     <div className="space-y-6">
+      {/* Save Status Message */}
+      {saveMessage && (
+        <div className={`p-3 rounded-lg border ${
+          saveMessage.includes('✅')
+            ? 'bg-green-50 border-green-200 text-green-800'
+            : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          <p className="text-sm font-medium">{saveMessage}</p>
+        </div>
+      )}
+
       {/* Enable Team Race Toggle */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="flex items-start justify-between">
@@ -103,11 +136,18 @@ export default function RaceTeamConfig({ raceId, isTeamRace, teamConfig, onChang
               type="checkbox"
               checked={isTeamRace}
               onChange={(e) => toggleTeamRace(e.target.checked)}
+              disabled={saving}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
           </label>
         </div>
+        {saving && (
+          <div className="mt-3 text-sm text-gray-500 flex items-center gap-2">
+            <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+            Enregistrement en cours...
+          </div>
+        )}
       </div>
 
       {/* Configuration Panel */}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, CheckCircle, XCircle, Clock, AlertCircle, Download, Hash, Edit2, Trash2, Eye, X } from 'lucide-react';
+import { Users, CheckCircle, XCircle, Clock, AlertCircle, Download, Hash, Edit2, Trash2, Eye, X, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface Team {
@@ -45,6 +45,7 @@ export default function OrganizerTeamsManager({ raceId, raceName }: OrganizerTea
   const [showTeamDetail, setShowTeamDetail] = useState(false);
   const [assigningBibs, setAssigningBibs] = useState(false);
   const [bibStartNumber, setBibStartNumber] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadTeams();
@@ -178,6 +179,19 @@ export default function OrganizerTeamsManager({ raceId, raceName }: OrganizerTea
     }
   };
 
+  const filteredTeams = teams.filter((team) => {
+    if (searchTerm === '') return true;
+
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      team.name.toLowerCase().includes(searchLower) ||
+      team.captain_email.toLowerCase().includes(searchLower) ||
+      team.captain_phone?.toLowerCase().includes(searchLower) ||
+      team.team_type.toLowerCase().includes(searchLower) ||
+      team.bib_numbers.some(bib => bib.includes(searchTerm))
+    );
+  });
+
   const exportToCSV = () => {
     const headers = [
       'Équipe',
@@ -193,7 +207,7 @@ export default function OrganizerTeamsManager({ raceId, raceName }: OrganizerTea
       'Date Création',
     ];
 
-    const rows = teams.map(team => [
+    const rows = filteredTeams.map(team => [
       team.name,
       team.team_type,
       team.status,
@@ -282,7 +296,7 @@ export default function OrganizerTeamsManager({ raceId, raceName }: OrganizerTea
             <span>Gestion des Équipes</span>
           </h3>
           <p className="text-sm text-gray-600 mt-1">
-            {teams.length} équipe(s) inscrite(s) pour {raceName}
+            {filteredTeams.length} équipe(s) affichée(s) sur {teams.length} pour {raceName}
           </p>
         </div>
         <button
@@ -320,6 +334,18 @@ export default function OrganizerTeamsManager({ raceId, raceName }: OrganizerTea
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <input
+          type="text"
+          placeholder="Rechercher par nom d'équipe, email, téléphone, type ou dossard..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+        />
+      </div>
+
       {/* Teams List */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <table className="w-full">
@@ -349,8 +375,15 @@ export default function OrganizerTeamsManager({ raceId, raceName }: OrganizerTea
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {teams.map((team) => (
-              <tr key={team.id} className="hover:bg-gray-50">
+            {filteredTeams.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  {searchTerm ? 'Aucune équipe trouvée pour cette recherche' : 'Aucune équipe inscrite'}
+                </td>
+              </tr>
+            ) : (
+              filteredTeams.map((team) => (
+                <tr key={team.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="font-semibold text-gray-900">{team.name}</div>
                   <div className="text-xs text-gray-500">{team.captain_email}</div>
@@ -405,11 +438,12 @@ export default function OrganizerTeamsManager({ raceId, raceName }: OrganizerTea
                   </div>
                 </td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
 
-        {teams.length === 0 && (
+        {false && teams.length === 0 && (
           <div className="text-center py-12 text-gray-500">
             Aucune équipe inscrite pour le moment
           </div>

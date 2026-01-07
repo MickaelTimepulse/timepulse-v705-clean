@@ -46,6 +46,7 @@ import EventCharacteristicsPicker from '../components/EventCharacteristicsPicker
 import RichTextEditor from '../components/Admin/RichTextEditor';
 import OrganizerSpeakerConfig from '../components/OrganizerSpeakerConfig';
 import OrganizerEventPartners from '../components/OrganizerEventPartners';
+import WaiverTemplateManager from '../components/WaiverTemplateManager';
 
 // Helper pour récupérer l'utilisateur actuel (admin ou organisateur)
 async function getCurrentUser(): Promise<{ id: string; isAdmin: boolean; organizerId?: string } | null> {
@@ -101,6 +102,8 @@ export default function OrganizerEventDetail() {
     custom_sport_type: '',
     show_public_entries_list: true,
     gender_restriction: 'all' as 'all' | 'M' | 'F',
+    min_age: '',
+    max_age: '',
   });
   const [uploadingGPX, setUploadingGPX] = useState<string | null>(null);
   const [gpxData, setGpxData] = useState<{[key: string]: GPXData}>({});
@@ -447,6 +450,8 @@ export default function OrganizerEventDetail() {
             custom_sport_type: raceFormData.sport_type === 'other' ? raceFormData.custom_sport_type : null,
             show_public_entries_list: raceFormData.show_public_entries_list,
             gender_restriction: raceFormData.gender_restriction,
+            min_age: raceFormData.min_age ? parseInt(raceFormData.min_age) : null,
+            max_age: raceFormData.max_age ? parseInt(raceFormData.max_age) : null,
             status: 'active',
           },
         ])
@@ -468,6 +473,8 @@ export default function OrganizerEventDetail() {
         custom_sport_type: '',
         show_public_entries_list: true,
         gender_restriction: 'all',
+        min_age: '',
+        max_age: '',
       });
     } catch (err: any) {
       alert('Erreur lors de la création de l\'épreuve : ' + err.message);
@@ -489,6 +496,8 @@ export default function OrganizerEventDetail() {
       custom_sport_type: race.custom_sport_type || '',
       show_public_entries_list: race.show_public_entries_list !== false,
       gender_restriction: race.gender_restriction || 'all',
+      min_age: race.min_age?.toString() || '',
+      max_age: race.max_age?.toString() || '',
     });
     setShowEditRaceModal(true);
   };
@@ -512,6 +521,8 @@ export default function OrganizerEventDetail() {
           show_public_entries_list: raceFormData.show_public_entries_list,
           custom_sport_type: raceFormData.sport_type === 'other' ? raceFormData.custom_sport_type : null,
           gender_restriction: raceFormData.gender_restriction,
+          min_age: raceFormData.min_age ? parseInt(raceFormData.min_age) : null,
+          max_age: raceFormData.max_age ? parseInt(raceFormData.max_age) : null,
         })
         .eq('id', editingRaceId);
 
@@ -554,6 +565,8 @@ export default function OrganizerEventDetail() {
               sport_type: raceFormData.sport_type,
               custom_sport_type: raceFormData.sport_type === 'other' ? raceFormData.custom_sport_type : null,
               gender_restriction: raceFormData.gender_restriction,
+              min_age: raceFormData.min_age ? parseInt(raceFormData.min_age) : null,
+              max_age: raceFormData.max_age ? parseInt(raceFormData.max_age) : null,
             }
           : race
       );
@@ -571,6 +584,8 @@ export default function OrganizerEventDetail() {
         custom_sport_type: '',
         show_public_entries_list: true,
         gender_restriction: 'all',
+        min_age: '',
+        max_age: '',
       });
     } catch (err: any) {
       alert('Erreur lors de la mise à jour de l\'épreuve : ' + err.message);
@@ -1866,6 +1881,16 @@ export default function OrganizerEventDetail() {
                                 >
                                   Règlement
                                 </button>
+                                {!event?.ffa_affiliated && (
+                                  <button
+                                    onClick={() => setRaceSubTab({...raceSubTab, [race.id]: 'waiver'})}
+                                    className={`px-4 py-2.5 text-xs font-semibold transition-all rounded-t-lg ${
+                                      getRaceSubTabColor('waiver', currentSubTab === 'waiver')
+                                    }`}
+                                  >
+                                    Décharge
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => setRaceSubTab({...raceSubTab, [race.id]: 'teams'})}
                                   className={`px-4 py-2.5 text-xs font-semibold transition-all rounded-t-lg ${
@@ -2081,6 +2106,33 @@ export default function OrganizerEventDetail() {
                                   </div>
                                 )}
 
+                                {currentSubTab === 'waiver' && (
+                                  <>
+                                    {console.log('DEBUG Waiver tab:', {
+                                      currentSubTab,
+                                      ffa_affiliated: event?.ffa_affiliated,
+                                      organizer_id: event?.organizer_id,
+                                      shouldShow: !event?.ffa_affiliated && event?.organizer_id
+                                    })}
+                                    {!event?.ffa_affiliated && event?.organizer_id ? (
+                                      <WaiverTemplateManager
+                                        raceId={race.id}
+                                        eventId={event.id}
+                                        organizerId={event.organizer_id}
+                                        onSave={loadEvent}
+                                      />
+                                    ) : (
+                                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                                        <p className="text-yellow-800">
+                                          {event?.ffa_affiliated
+                                            ? 'Les événements affiliés FFA ne nécessitent pas de décharge personnalisée.'
+                                            : 'Chargement...'}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+
                                 {currentSubTab === 'teams' && (
                                   <RaceTeamConfig
                                     raceId={race.id}
@@ -2100,19 +2152,25 @@ export default function OrganizerEventDetail() {
                                       auto_assign_bibs: true,
                                     }}
                                     onChange={async (isTeamRace, teamConfig) => {
-                                      const { error } = await supabase
-                                        .from('races')
-                                        .update({
-                                          is_team_race: isTeamRace,
-                                          team_config: teamConfig,
-                                          team_rules: teamConfig.team_rules || null,
-                                        })
-                                        .eq('id', race.id);
+                                      try {
+                                        const { error } = await supabase
+                                          .from('races')
+                                          .update({
+                                            is_team_race: isTeamRace,
+                                            team_config: teamConfig,
+                                            team_rules: teamConfig.team_rules || null,
+                                          })
+                                          .eq('id', race.id);
 
-                                      if (error) {
-                                        console.error('Error updating team config:', error);
-                                      } else {
+                                        if (error) {
+                                          console.error('Error updating team config:', error);
+                                          throw new Error(error.message);
+                                        }
+
                                         await loadEvent();
+                                      } catch (err: any) {
+                                        console.error('Error in onChange:', err);
+                                        throw err;
                                       }
                                     }}
                                   />
@@ -2143,7 +2201,7 @@ export default function OrganizerEventDetail() {
                       <h3 className="text-lg font-semibold text-gray-900">Gestion des inscriptions</h3>
                       <div className="flex gap-3">
                         <button
-                          onClick={() => navigate(`/organizer/entries?eventId=${id}`)}
+                          onClick={() => navigate(`/organizer/events/${id}/entries`)}
                           className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                         >
                           <Eye className="w-5 h-5" />
@@ -2158,7 +2216,7 @@ export default function OrganizerEventDetail() {
                         </button>
                       </div>
                     </div>
-                    <EntriesList eventId={id!} races={races} />
+                    <EntriesList eventId={id!} races={races} event={event} />
                   </>
                 ) : (
                   organizerId && adminUserId && (
@@ -3847,17 +3905,17 @@ export default function OrganizerEventDetail() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Distance (km) *
+                    Distance (km)
                   </label>
                   <input
                     type="number"
-                    required
                     step="0.1"
                     value={raceFormData.distance}
                     onChange={(e) => setRaceFormData({ ...raceFormData, distance: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                     placeholder="25"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Pour les relais, la distance sera calculée automatiquement à partir des segments</p>
                 </div>
 
                 <div>
@@ -3930,6 +3988,68 @@ export default function OrganizerEventDetail() {
                   Si vous sélectionnez "Hommes uniquement" ou "Femmes uniquement", seul le genre correspondant pourra s'inscrire à cette épreuve.
                 </p>
               </div>
+
+              {!event?.ffa_affiliated && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-blue-900 mb-3">
+                      Restrictions d'âge (optionnel)
+                    </h4>
+                    <p className="text-xs text-blue-700 mb-4">
+                      Définissez les âges minimum et/ou maximum autorisés pour cette épreuve. L'âge sera calculé à la date de l'événement.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Âge minimum (ans)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="120"
+                        value={raceFormData.min_age}
+                        onChange={(e) => setRaceFormData({ ...raceFormData, min_age: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Ex: 18"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        À partir de X ans (laissez vide si aucun minimum)
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Âge maximum (ans)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="120"
+                        value={raceFormData.max_age}
+                        onChange={(e) => setRaceFormData({ ...raceFormData, max_age: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Ex: 65"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Jusqu'à X ans (laissez vide si aucun maximum)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded p-3 border border-blue-100">
+                    <p className="text-xs text-blue-800">
+                      <strong>Exemples :</strong>
+                    </p>
+                    <ul className="text-xs text-blue-700 space-y-1 mt-2">
+                      <li>• Âge minimum 18 ans : seuls les participants de 18 ans et plus pourront s'inscrire</li>
+                      <li>• Âge minimum 16 ans, maximum 35 ans : seuls les participants entre 16 et 35 ans pourront s'inscrire</li>
+                      <li>• Aucune restriction : laissez les deux champs vides</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
                 <input
@@ -4041,17 +4161,17 @@ export default function OrganizerEventDetail() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Distance (km) *
+                    Distance (km)
                   </label>
                   <input
                     type="number"
-                    required
                     step="0.1"
                     value={raceFormData.distance}
                     onChange={(e) => setRaceFormData({ ...raceFormData, distance: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                     placeholder="25"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Pour les relais, la distance sera calculée automatiquement à partir des segments</p>
                 </div>
 
                 <div>
@@ -4124,6 +4244,68 @@ export default function OrganizerEventDetail() {
                   Si vous sélectionnez "Hommes uniquement" ou "Femmes uniquement", seul le genre correspondant pourra s'inscrire à cette épreuve.
                 </p>
               </div>
+
+              {!event?.ffa_affiliated && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-blue-900 mb-3">
+                      Restrictions d'âge (optionnel)
+                    </h4>
+                    <p className="text-xs text-blue-700 mb-4">
+                      Définissez les âges minimum et/ou maximum autorisés pour cette épreuve. L'âge sera calculé à la date de l'événement.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Âge minimum (ans)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="120"
+                        value={raceFormData.min_age}
+                        onChange={(e) => setRaceFormData({ ...raceFormData, min_age: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Ex: 18"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        À partir de X ans (laissez vide si aucun minimum)
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Âge maximum (ans)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="120"
+                        value={raceFormData.max_age}
+                        onChange={(e) => setRaceFormData({ ...raceFormData, max_age: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Ex: 65"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Jusqu'à X ans (laissez vide si aucun maximum)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded p-3 border border-blue-100">
+                    <p className="text-xs text-blue-800">
+                      <strong>Exemples :</strong>
+                    </p>
+                    <ul className="text-xs text-blue-700 space-y-1 mt-2">
+                      <li>• Âge minimum 18 ans : seuls les participants de 18 ans et plus pourront s'inscrire</li>
+                      <li>• Âge minimum 16 ans, maximum 35 ans : seuls les participants entre 16 et 35 ans pourront s'inscrire</li>
+                      <li>• Aucune restriction : laissez les deux champs vides</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
                 <input

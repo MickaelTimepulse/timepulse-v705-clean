@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import PublicRegistrationForm from '../components/PublicRegistrationForm';
+import RelayTeamRegistrationForm from '../components/RelayTeamRegistrationForm';
 import CartWidget from '../components/CartWidget';
 import { CreditCard, Check, AlertCircle, Facebook, MessageCircle, Share2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { EmailService, RegistrationConfirmationData } from '../lib/email-service';
 import { getBackgroundImageByType } from '../lib/background-images';
+import { calculateFFACategory } from '../lib/category-calculator';
 
 export default function PublicRegistration() {
   const { eventId } = useParams();
@@ -18,6 +20,7 @@ export default function PublicRegistration() {
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState(false);
   const [eventData, setEventData] = useState<any>(null);
+  const [isRelayRace, setIsRelayRace] = useState(false);
   const [sessionToken] = useState(() => {
     let token = sessionStorage.getItem('cart_session_token');
     if (!token) {
@@ -30,6 +33,32 @@ export default function PublicRegistration() {
   useEffect(() => {
     loadEventData();
   }, [eventId]);
+
+  useEffect(() => {
+    if (preselectedRaceId) {
+      checkIfRelayRace(preselectedRaceId);
+    }
+  }, [preselectedRaceId]);
+
+  const checkIfRelayRace = async (raceId: string) => {
+    try {
+      // Vérifier s'il y a des segments de relais pour cette course
+      const { data, error } = await supabase
+        .from('relay_segments')
+        .select('id')
+        .eq('race_id', raceId)
+        .limit(1);
+
+      if (data && data.length > 0) {
+        setIsRelayRace(true);
+      } else {
+        setIsRelayRace(false);
+      }
+    } catch (err) {
+      console.error('Error checking if relay race:', err);
+      setIsRelayRace(false);
+    }
+  };
 
   const loadEventData = async () => {
     if (!eventId) return;
@@ -537,6 +566,7 @@ export default function PublicRegistration() {
         console.log('🏃‍♂️ [RELAY] Inscription équipe relais détectée');
         console.log('🏃‍♂️ [RELAY] Nombre de membres:', registrationData.members.length);
         console.log('🏃‍♂️ [RELAY] Nom équipe:', registrationData.name);
+        console.log('🏃‍♂️ [RELAY] Prix total:', totalAmountCents, 'cents');
 
         try {
           // Pour chaque membre, créer un athlète et une entrée
@@ -544,79 +574,168 @@ export default function PublicRegistration() {
 
           for (const member of registrationData.members) {
             // Créer/récupérer l'athlète
+            // Chercher UNIQUEMENT par identité (nom + prénom + date naissance)
+            // L'email peut être en double (cas où le responsable utilise son email pour toute l'équipe)
             const { data: existingAthlete } = await supabase
               .from('athletes')
-              .select('id')
-              .eq('email', member.email)
+              .select('id, email')
+              .ilike('first_name', member.firstName)
+              .ilike('last_name', member.lastName)
+              .eq('birthdate', member.birthDate)
               .maybeSingle();
 
             let athleteId;
 
             if (existingAthlete) {
               athleteId = existingAthlete.id;
+              console.log(`♻️ [RELAY] Athlète existant trouvé pour ${member.firstName} ${member.lastName}`);
+
               // Mettre à jour les infos de l'athlète
+              const updateData: any = {
+                first_name: member.firstName,
+                last_name: member.lastName,
+                phone: member.phone,
+                gender: member.gender,
+                birthdate: member.birthDate,
+                nationality: member.nationality || 'FRA',
+                license_number: member.licenseId || null,
+                license_club: member.licenseClub || null,
+                license_type: member.licenseType || null,
+              };
+
+              // Mettre à jour l'email seulement s'il est fourni et différent
+              if (member.email && member.email !== existingAthlete.email) {
+                updateData.email = member.email;
+              }
+
+              // Pour respecter la contrainte check_pps_coherence:
+              // Soit les deux sont NULL, soit les deux sont NOT NULL
+              // Comme on ne gère pas la date d'expiration dans ce formulaire, on ne met PAS le PPS
+              updateData.pps_number = null;
+              updateData.pps_valid_until = null;
+
               await supabase
                 .from('athletes')
-                .update({
-                  first_name: member.firstName,
-                  last_name: member.lastName,
-                  phone: member.phone,
-                  gender: member.gender,
-                  birthdate: member.birthDate,
-                  nationality: member.nationality || 'FRA',
-                  license_number: member.licenseId,
-                  license_club: member.licenseClub,
-                  pps_number: member.ppsNumber,
-                  license_type: member.licenseType,
-                })
+                .update(updateData)
                 .eq('id', athleteId);
             } else {
               // Créer un nouvel athlète
+              console.log(`➕ [RELAY] Création nouvel athlète ${member.firstName} ${member.lastName}`);
+
+              const insertData: any = {
+                first_name: member.firstName,
+                last_name: member.lastName,
+                email: member.email,
+                phone: member.phone,
+                gender: member.gender,
+                birthdate: member.birthDate,
+                nationality: member.nationality || 'FRA',
+                license_number: member.licenseId || null,
+                license_club: member.licenseClub || null,
+                license_type: member.licenseType || null,
+              };
+
+              // Pour respecter la contrainte check_pps_coherence:
+              // Soit les deux sont NULL, soit les deux sont NOT NULL
+              // Comme on ne gère pas la date d'expiration dans ce formulaire, on ne met PAS le PPS
+              insertData.pps_number = null;
+              insertData.pps_valid_until = null;
+
               const { data: newAthlete, error: athleteError } = await supabase
                 .from('athletes')
-                .insert({
-                  first_name: member.firstName,
-                  last_name: member.lastName,
-                  email: member.email,
-                  phone: member.phone,
-                  gender: member.gender,
-                  birthdate: member.birthDate,
-                  nationality: member.nationality || 'FRA',
-                  license_number: member.licenseId,
-                  license_club: member.licenseClub,
-                  pps_number: member.ppsNumber,
-                  license_type: member.licenseType,
-                })
+                .insert(insertData)
                 .select()
                 .single();
 
-              if (athleteError) throw athleteError;
+              if (athleteError) {
+                console.error('❌ [RELAY] Erreur création athlète:', athleteError);
+                throw athleteError;
+              }
               athleteId = newAthlete.id;
             }
 
             // Générer un code de gestion unique
             const managementCode = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`.toUpperCase();
 
-            // Créer l'entrée
-            const { data: entry, error: entryError } = await supabase
-              .from('entries')
-              .insert({
-                athlete_id: athleteId,
-                race_id: registrationData.race_id,
-                event_id: registrationData.event_id,
-                organizer_id: registrationData.organizer_id,
-                status: 'confirmed',
-                registration_status: 'confirmed',
-                payment_status: 'paid',
-                source: 'online',
-                amount: totalAmountCents / registrationData.members.length,
-                management_code: managementCode,
-                registration_date: new Date().toISOString(),
-              })
-              .select()
+            // Récupérer la date de l'événement pour calculer la catégorie
+            const { data: raceData } = await supabase
+              .from('races')
+              .select('race_date')
+              .eq('id', registrationData.race_id)
               .single();
 
-            if (entryError) throw entryError;
+            const eventDate = raceData?.race_date ? new Date(raceData.race_date) : new Date();
+            const category = calculateFFACategory(member.birthDate, eventDate);
+
+            // Créer l'entrée
+            // Vérifier si l'athlète est déjà inscrit à cette course
+            const { data: existingEntry } = await supabase
+              .from('entries')
+              .select('id, management_code')
+              .eq('athlete_id', athleteId)
+              .eq('race_id', registrationData.race_id)
+              .maybeSingle();
+
+            let entry;
+
+            if (existingEntry) {
+              // Si c'est le même code de gestion, c'est un retry (réutiliser l'entrée)
+              if (existingEntry.management_code === managementCode) {
+                console.log(`⚠️ [RELAY] Entrée existante réutilisée pour ${member.firstName} ${member.lastName}`);
+                entry = existingEntry;
+              } else {
+                // Différent code de gestion = athlète déjà inscrit dans une autre équipe
+                throw new Error(`${member.firstName} ${member.lastName} est déjà inscrit(e) à cette course dans une autre équipe.`);
+              }
+            } else {
+              // Créer une nouvelle entrée
+              const { data: newEntry, error: entryError } = await supabase
+                .from('entries')
+                .insert({
+                  athlete_id: athleteId,
+                  race_id: registrationData.race_id,
+                  event_id: registrationData.event_id,
+                  organizer_id: registrationData.organizer_id,
+                  category: category || 'SE',
+                  status: 'confirmed',
+                  registration_status: 'confirmed',
+                  payment_status: 'paid',
+                  source: 'online',
+                  amount: totalAmountCents / registrationData.members.length,
+                  management_code: managementCode,
+                  registration_date: new Date().toISOString(),
+                })
+                .select()
+                .single();
+
+              if (entryError) throw entryError;
+              entry = newEntry;
+            }
+
+            // Sauvegarder les options sélectionnées (tailles de t-shirt, etc.)
+            if (member.selectedOptions && Object.keys(member.selectedOptions).length > 0) {
+              console.log(`📋 [RELAY OPTIONS] Sauvegarde options pour ${member.firstName} ${member.lastName}:`, member.selectedOptions);
+
+              const registrationOptions = Object.entries(member.selectedOptions).map(([optionId, optionData]: [string, any]) => ({
+                entry_id: entry.id,
+                option_id: optionId,
+                choice_id: optionData.choice_id || null,
+                value: optionData.value || null,
+                quantity: optionData.quantity || 1,
+                price_paid_cents: optionData.price_paid_cents || 0,
+              }));
+
+              const { error: optionsError } = await supabase
+                .from('registration_options')
+                .insert(registrationOptions);
+
+              if (optionsError) {
+                console.error(`❌ [RELAY OPTIONS] Erreur sauvegarde options:`, optionsError);
+                // Ne pas bloquer l'inscription si les options ne peuvent pas être sauvegardées
+              } else {
+                console.log(`✅ [RELAY OPTIONS] Options sauvegardées:`, registrationOptions.length);
+              }
+            }
 
             entries.push({
               entry_id: entry.id,
@@ -628,6 +747,80 @@ export default function PublicRegistration() {
           }
 
           console.log('✅ [RELAY] Tous les membres inscrits:', entries.length);
+
+          // Créer l'équipe dans la table teams
+          console.log('👥 [RELAY] Création de l\'équipe:', registrationData.name);
+
+          // Déterminer le type d'équipe simple (homme/femme/mixte) depuis la catégorie
+          let teamType = 'mixte';
+          if (registrationData.team_category) {
+            const category = registrationData.team_category.toLowerCase();
+            if (category.includes('homme') && !category.includes('femme')) {
+              teamType = 'homme';
+            } else if (category.includes('femme') && !category.includes('homme')) {
+              teamType = 'femme';
+            }
+          }
+
+          // Préparer les métadonnées avec le contact d'urgence
+          const metadata: any = {
+            registration_source: 'online',
+            event_id: registrationData.event_id,
+            organizer_id: registrationData.organizer_id,
+          };
+
+          if (registrationData.emergency_contact) {
+            metadata.emergency_contact = {
+              name: registrationData.emergency_contact.name,
+              phone: registrationData.emergency_contact.phone,
+              relation: registrationData.emergency_contact.relation,
+            };
+          }
+
+          const { data: teamData, error: teamError } = await supabase
+            .from('teams')
+            .insert({
+              name: registrationData.name,
+              race_id: registrationData.race_id,
+              team_type: teamType,
+              status: 'complete',
+              payment_mode: 'team',
+              min_members: registrationData.members.length,
+              max_members: registrationData.members.length,
+              current_members_count: registrationData.members.length,
+              payment_status: 'paid',
+              total_amount: totalAmountCents / 100,
+              metadata: metadata,
+            })
+            .select()
+            .single();
+
+          if (teamError) {
+            console.error('❌ [RELAY] Erreur création équipe:', teamError);
+            throw teamError;
+          }
+
+          console.log('✅ [RELAY] Équipe créée avec ID:', teamData.id);
+
+          // Créer les liens team_members pour chaque entrée
+          const teamMembers = entries.map((entry, index) => ({
+            team_id: teamData.id,
+            entry_id: entry.entry_id,
+            role: index === 0 ? 'captain' : 'member',
+            position: index + 1,
+            status: 'validated',
+          }));
+
+          const { error: membersError } = await supabase
+            .from('team_members')
+            .insert(teamMembers);
+
+          if (membersError) {
+            console.error('❌ [RELAY] Erreur création team_members:', membersError);
+            throw membersError;
+          }
+
+          console.log('✅ [RELAY] Liens team_members créés');
 
           // Envoyer les emails de confirmation
           try {
@@ -935,14 +1128,29 @@ export default function PublicRegistration() {
           }}
         />
         <div className="relative z-10">
-          <PublicRegistrationForm
-            key={registrationData ? 'restore' : 'new'}
-            eventId={eventId || ''}
-            organizerId=""
-            onComplete={handleRegistrationComplete}
-            preselectedRaceId={preselectedRaceId || undefined}
-            initialData={registrationData}
-          />
+          {isRelayRace ? (
+            <RelayTeamRegistrationForm
+              eventId={eventId || ''}
+              raceId={preselectedRaceId || ''}
+              initialData={registrationData}
+              onComplete={handleRegistrationComplete}
+              onBack={() => {
+                if (eventData?.slug) {
+                  navigate(`/events/${eventData.slug}`);
+                } else if (eventId) {
+                  navigate(`/events/${eventId}`);
+                }
+              }}
+            />
+          ) : (
+            <PublicRegistrationForm
+              eventId={eventId || ''}
+              organizerId=""
+              onComplete={handleRegistrationComplete}
+              preselectedRaceId={preselectedRaceId || undefined}
+              initialData={registrationData}
+            />
+          )}
         </div>
         {/* Widget panier flottant */}
         {eventId && (
@@ -973,7 +1181,10 @@ export default function PublicRegistration() {
         <div className="mb-6">
           <button
             type="button"
-            onClick={() => setShowPayment(false)}
+            onClick={() => {
+              console.log('🔙 Retour au formulaire avec conservation des données');
+              setShowPayment(false);
+            }}
             className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

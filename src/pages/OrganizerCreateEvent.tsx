@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 import { Calendar, MapPin, FileText, CheckCircle, ArrowRight, ArrowLeft, Image } from 'lucide-react';
 import OrganizerLayout from '../components/OrganizerLayout';
 import EventCharacteristicsPicker from '../components/EventCharacteristicsPicker';
+import FederationSelector from '../components/FederationSelector';
+import DisciplinePicker from '../components/DisciplinePicker';
 
 interface EventFormData {
   name: string;
@@ -25,6 +27,8 @@ interface EventFormData {
   ffa_affiliated: boolean;
   ffa_calorg_code: string;
   characteristic_ids: string[];
+  federation_id: string | null;
+  discipline_id: string | null;
 }
 
 const STEPS = [
@@ -59,6 +63,8 @@ export default function OrganizerCreateEvent() {
     ffa_affiliated: false,
     ffa_calorg_code: '',
     characteristic_ids: [],
+    federation_id: null,
+    discipline_id: null,
   });
 
   const generateSlug = (name: string, startDate: string) => {
@@ -92,6 +98,10 @@ export default function OrganizerCreateEvent() {
         }
         if (formData.ffa_affiliated && !formData.ffa_calorg_code) {
           setError('Le code CalOrg FFA est obligatoire pour les événements affiliés FFA');
+          return false;
+        }
+        if (!formData.ffa_affiliated && (!formData.federation_id || !formData.discipline_id)) {
+          setError('La fédération et la discipline sont obligatoires pour les événements non-FFA');
           return false;
         }
         return true;
@@ -176,6 +186,8 @@ export default function OrganizerCreateEvent() {
         public_registration: formData.public_registration,
         ffa_affiliated: formData.ffa_affiliated,
         ffa_calorg_code: formData.ffa_affiliated ? formData.ffa_calorg_code : null,
+        federation_id: !formData.ffa_affiliated ? formData.federation_id : null,
+        discipline_id: !formData.ffa_affiliated ? formData.discipline_id : null,
         status: 'published',
       };
 
@@ -433,6 +445,33 @@ export default function OrganizerCreateEvent() {
                   </div>
                 )}
               </div>
+
+              {!formData.ffa_affiliated && (
+                <div className="border-t pt-6 mt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Fédération et discipline
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Pour les événements non affiliés à la FFA, veuillez sélectionner votre fédération et la discipline sportive.
+                  </p>
+
+                  <div className="space-y-6">
+                    <FederationSelector
+                      value={formData.federation_id}
+                      onChange={(federationId) => handleInputChange('federation_id', federationId)}
+                      required
+                      showRequirements={true}
+                    />
+
+                    <DisciplinePicker
+                      value={formData.discipline_id}
+                      onChange={(disciplineId) => handleInputChange('discipline_id', disciplineId)}
+                      required
+                      showCategories={true}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="border-t pt-6 mt-6">
                 <EventCharacteristicsPicker

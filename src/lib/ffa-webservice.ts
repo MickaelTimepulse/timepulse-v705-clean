@@ -116,62 +116,95 @@ export async function callFFAWebservice(
   request: FFAWebserviceRequest
 ): Promise<FFAWebserviceResponse> {
   try {
-    // URL du webservice FFA SOAP (TEST et PROD)
-    const ffaApiUrl = 'http://webservicesffa.athle.fr/St_Chrono/STCHRONO.asmx';
-    const soapAction = 'http://www.athle.fr/STCHRONO_V2';
+    // Utiliser la Edge Function Supabase pour éviter les problèmes Mixed Content (HTTP/HTTPS)
+    const edgeFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ffa-verify-athlete`;
 
-    // Construire le SOAP envelope pour STCHRONO_V2
-    const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <STCHRONO_V2 xmlns="http://www.athle.fr/">
-      <E_UID>${request.uid}</E_UID>
-      <E_MDP>${request.mdp}</E_MDP>
-      <E_NUMREL>${request.numrel || ''}</E_NUMREL>
-      <E_NOM>${request.nom.toUpperCase()}</E_NOM>
-      <E_PRENOM>${request.prenom.toUpperCase()}</E_PRENOM>
-      <E_SEXE>${request.sexe}</E_SEXE>
-      <E_DATE_NAI>${request.date_nai}</E_DATE_NAI>
-      <E_CNIL_WEB>${request.cnil_web}</E_CNIL_WEB>
-      <E_CMPCOD>${request.cmpcod}</E_CMPCOD>
-      <E_CMPDATE>${request.cmpdate}</E_CMPDATE>
-      <E_ID_ACT_EXT>${request.id_act_ext || ''}</E_ID_ACT_EXT>
-      <E_ID_CMP_EXT>${request.id_cmp_ext || ''}</E_ID_CMP_EXT>
-    </STCHRONO_V2>
-  </soap:Body>
-</soap:Envelope>`;
+    console.log('[FFA Webservice] Calling Edge Function with request:', request);
 
-    console.log('[FFA Webservice] SOAP Request:', soapEnvelope);
-
-    // Appel HTTP SOAP au webservice FFA
-    const response = await fetch(ffaApiUrl, {
+    // Appeler l'Edge Function qui fera le proxy vers l'API FFA
+    const response = await fetch(edgeFunctionUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': soapAction,
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
       },
-      body: soapEnvelope,
+      body: JSON.stringify({
+        uid: request.uid,
+        mdp: request.mdp,
+        numrel: request.numrel || '',
+        nom: request.nom,
+        prenom: request.prenom,
+        sexe: request.sexe,
+        date_nai: request.date_nai,
+        cnil_web: request.cnil_web,
+        cmpcod: request.cmpcod,
+        cmpdate: request.cmpdate,
+        id_act_ext: request.id_act_ext || '',
+        id_cmp_ext: request.id_cmp_ext || '',
+      }),
     });
 
     if (!response.ok) {
-      throw new Error(`FFA Webservice error: ${response.status}`);
+      throw new Error(`Edge Function error: ${response.status}`);
     }
 
-    // La réponse est du XML SOAP
-    const responseText = await response.text();
-    console.log('[FFA Webservice] SOAP Response:', responseText);
+    const result = await response.json();
+    console.log('[FFA Webservice] Edge Function Response:', result);
 
-    // Extraire le résultat du SOAP envelope
-    const resultMatch = responseText.match(/<STCHRONO_V2Result>([^<]+)<\/STCHRONO_V2Result>/);
-    if (!resultMatch) {
-      throw new Error('Format de réponse FFA invalide');
+    // Si la connexion a échoué
+    if (!result.connected) {
+      // Erreur PROx014 : événement non déclaré FFA
+      if (result.error_code === 'PROx014' || result.message?.includes('PROx014')) {
+        throw new Error(
+          'Événement non déclaré FFA. Pour utiliser la vérification FFA :\n' +
+          '1. Déclarez votre événement dans CalOrg (https://www.athle.fr)\n' +
+          '2. Obtenez un code CalOrg FFA (ex: 308668)\n' +
+          '3. Vérifiez que la date de l\'événement correspond à celle dans CalOrg\n' +
+          '4. Configurez le code CalOrg dans les paramètres de l\'événement\n\n' +
+          'Si votre événement n\'est pas FFA, les participants peuvent s\'inscrire sans licence.'
+        );
+      }
+
+      throw new Error(result.message || 'Erreur lors de la vérification FFA');
     }
 
-    const csvResponse = resultMatch[1];
-    console.log('[FFA Webservice] CSV Response:', csvResponse);
+    // Extraire les données de l'athlète depuis la réponse de l'Edge Function
+    const athleteData = result.details?.test_athlete;
+    if (!athleteData) {
+      throw new Error('Données athlète manquantes dans la réponse FFA');
+    }
 
-    // Parser la réponse CSV
-    const parsedResponse = parseFFAResponse(csvResponse);
+    // Créer la réponse au format FFAWebserviceResponse
+    const parsedResponse: FFAWebserviceResponse = {
+      infoflg: result.details.flags.info_exact ? 'O' : 'N',
+      relflg: result.details.flags.relation_valide ? 'O' : 'N',
+      mutflg: result.details.flags.mute ? 'O' : 'N',
+      pspflg: result.details.flags.pps_requis ? 'O' : 'N',
+      cmpcod: request.cmpcod,
+      id_act_ext: request.id_act_ext || '',
+      id_cmp_ext: request.id_cmp_ext || '',
+      numrel: athleteData.numrel || '',
+      nom: athleteData.nom || request.nom,
+      prenom: athleteData.prenom || request.prenom,
+      sexe: athleteData.sexe || request.sexe,
+      date_nai: athleteData.date_nai || request.date_nai,
+      natcod: athleteData.natcod || '',
+      relcod: athleteData.relcod || '',
+      dfinrel: athleteData.license_expiry || '',
+      catcod: athleteData.catcod || '',
+      strcodnum_clu: athleteData.club_numero || '',
+      strnomabr_clu: athleteData.club_abrege || '',
+      strnom_clu: athleteData.club || '',
+      strcodnum_clum: athleteData.club_numero || '',
+      strnomabr_clum: athleteData.club_abrege || '',
+      strnom_clum: athleteData.club || '',
+      strcodnum_clue: '',
+      strnomabr_clue: '',
+      strnom_clue: '',
+      strnomabr_dep: athleteData.departement || '',
+      strnomabr_lig: athleteData.ligue || '',
+      msg_retour: result.details.msg_retour || 'OK',
+    };
 
     // Enregistrer dans les logs
     await logFFAVerification(request, parsedResponse);
@@ -687,5 +720,198 @@ export async function testFFAConnection(): Promise<{
       message: 'Erreur lors du test de connexion : ' + (error as Error).message,
       details: { error: (error as Error).message }
     };
+  }
+}
+
+/**
+ * Actualise toutes les licences FFA d'une course
+ * Met à jour les informations FFA pour tous les athlètes ayant un numéro de licence
+ */
+export async function refreshFFALicensesForRace(
+  raceId: string
+): Promise<{
+  total: number;
+  updated: number;
+  errors: number;
+  details: Array<{
+    athleteId: string;
+    athleteName: string;
+    licenseNumber: string;
+    status: 'success' | 'error';
+    message?: string;
+  }>;
+}> {
+  const results: Array<{
+    athleteId: string;
+    athleteName: string;
+    licenseNumber: string;
+    status: 'success' | 'error';
+    message?: string;
+  }> = [];
+
+  try {
+    // Récupérer la course et l'événement
+    const { data: race, error: raceError } = await supabase
+      .from('races')
+      .select('*, event:events(*)')
+      .eq('id', raceId)
+      .maybeSingle();
+
+    if (raceError || !race || !race.event) {
+      throw new Error('Course introuvable');
+    }
+
+    // Vérifier si l'événement est affilié FFA
+    if (!race.event.ffa_affiliated || !race.event.ffa_calorg_code) {
+      throw new Error(
+        'Événement non affilié FFA. Pour utiliser la vérification FFA, vous devez :\n' +
+        '1. Déclarer votre événement auprès de la FFA dans CalOrg\n' +
+        '2. Obtenir un code CalOrg (ex: 308668)\n' +
+        '3. Configurer ce code dans les paramètres de l\'événement\n' +
+        '4. Vérifier que la date de l\'événement correspond à celle déclarée dans CalOrg'
+      );
+    }
+
+    // Récupérer toutes les inscriptions avec numéro de licence
+    const { data: entries, error: entriesError } = await supabase
+      .from('entries')
+      .select(`
+        id,
+        athlete_id,
+        athletes (
+          id,
+          first_name,
+          last_name,
+          gender,
+          birthdate,
+          license_number,
+          public_results_consent
+        )
+      `)
+      .eq('race_id', raceId)
+      .not('athletes.license_number', 'is', null);
+
+    if (entriesError) {
+      throw entriesError;
+    }
+
+    if (!entries || entries.length === 0) {
+      return {
+        total: 0,
+        updated: 0,
+        errors: 0,
+        details: []
+      };
+    }
+
+    // Récupérer les identifiants FFA
+    const { data: settingsData } = await supabase.rpc('get_ffa_settings');
+    const uidSetting = settingsData?.find((s: any) => s.key === 'ffa_api_uid');
+    const passwordSetting = settingsData?.find((s: any) => s.key === 'ffa_api_password');
+
+    if (!uidSetting?.value || !passwordSetting?.value) {
+      throw new Error('Identifiants FFA non configurés');
+    }
+
+    const uid = uidSetting.value;
+    const password = passwordSetting.value;
+
+    // Traiter chaque inscription
+    let updated = 0;
+    let errors = 0;
+
+    for (const entry of entries) {
+      const athlete = entry.athletes as any;
+
+      if (!athlete || !athlete.license_number) {
+        continue;
+      }
+
+      const athleteName = `${athlete.first_name} ${athlete.last_name}`;
+
+      try {
+        // Préparer la requête FFA
+        const ffaRequest: FFAWebserviceRequest = {
+          uid,
+          mdp: password,
+          numrel: athlete.license_number,
+          nom: athlete.last_name,
+          prenom: athlete.first_name,
+          sexe: athlete.gender,
+          date_nai: formatDateForFFA(athlete.birthdate),
+          cnil_web: athlete.public_results_consent ? 'O' : 'N',
+          cmpcod: race.event.ffa_calorg_code,
+          cmpdate: formatDateForFFA(race.event.start_date),
+          id_act_ext: athlete.id,
+          id_cmp_ext: raceId,
+        };
+
+        // Appeler le webservice FFA
+        const ffaResponse = await callFFAWebservice(ffaRequest);
+
+        // Convertir la date d'expiration FFA (DD/MM/YYYY) en format ISO
+        let expiryDate = null;
+        if (ffaResponse.dfinrel) {
+          try {
+            const parts = ffaResponse.dfinrel.split('/');
+            if (parts.length === 3) {
+              expiryDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+          } catch (e) {
+            console.error('Error parsing expiry date:', e);
+          }
+        }
+
+        // Mettre à jour l'athlète avec les informations FFA
+        const { error: updateError } = await supabase
+          .from('athletes')
+          .update({
+            license_club: ffaResponse.strnom_clu || null,
+            ffa_club_name: ffaResponse.strnom_clu || null,
+            ffa_relcod: ffaResponse.relcod || null,
+            ffa_club_code: ffaResponse.strcodnum_clu || null,
+            ffa_league_abbr: ffaResponse.strnomabr_lig || null,
+            ffa_department_abbr: ffaResponse.strnomabr_dep || null,
+            ffa_catcod: ffaResponse.catcod || null,
+            pps_number: ffaResponse.pspflg === 'O' ? (ffaResponse.numrel || null) : null,
+            pps_expiry_date: expiryDate,
+          })
+          .eq('id', athlete.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        updated++;
+        results.push({
+          athleteId: athlete.id,
+          athleteName,
+          licenseNumber: athlete.license_number,
+          status: 'success',
+          message: `Licence actualisée - ${ffaResponse.catcod} - ${ffaResponse.strnom_clu || 'Pas de club'}`
+        });
+
+      } catch (error) {
+        errors++;
+        results.push({
+          athleteId: athlete.id,
+          athleteName,
+          licenseNumber: athlete.license_number,
+          status: 'error',
+          message: (error as Error).message
+        });
+      }
+    }
+
+    return {
+      total: entries.length,
+      updated,
+      errors,
+      details: results
+    };
+
+  } catch (error) {
+    console.error('Error refreshing FFA licenses:', error);
+    throw error;
   }
 }

@@ -205,7 +205,15 @@ export default function AdminEvents() {
                     Voir
                   </button>
                   <button
-                    onClick={() => navigate(`/organizer/events/${event.id}`)}
+                    onClick={async () => {
+                      // Vérifier si l'admin a une session Supabase active
+                      const { data: { session } } = await supabase.auth.getSession();
+                      if (!session) {
+                        alert('⚠️ Vous devez vous déconnecter et vous reconnecter pour accéder à cette page.\n\nAllez dans votre profil admin (en haut à droite) puis cliquez sur "Déconnexion".');
+                        return;
+                      }
+                      navigate(`/organizer/events/${event.id}`);
+                    }}
                     className="text-pink-600 hover:text-pink-800 font-medium text-sm"
                   >
                     Modifier

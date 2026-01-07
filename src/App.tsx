@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Suspense, lazy, useState, useEffect } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import MaintenanceCheck from './components/MaintenanceCheck';
 
 function ErrorBoundaryContent() {
   return (
@@ -71,6 +72,7 @@ const AdminEmailAssets = lazy(() => import('./pages/AdminEmailAssets'));
 const AdminCertificates = lazy(() => import('./pages/AdminCertificates'));
 const AdminFooterSettings = lazy(() => import('./pages/AdminFooterSettings'));
 const AdminStaticPages = lazy(() => import('./pages/AdminStaticPages'));
+const AdminCustomForms = lazy(() => import('./pages/AdminCustomForms'));
 const AdminProjectTracking = lazy(() => import('./pages/AdminProjectTracking'));
 const AdminVideos = lazy(() => import('./pages/AdminVideos'));
 const AdminAuditLogs = lazy(() => import('./pages/AdminAuditLogs'));
@@ -83,6 +85,7 @@ const OrganizerExternalResults = lazy(() => import('./pages/OrganizerExternalRes
 const OrganizerExternalResultsImport = lazy(() => import('./pages/OrganizerExternalResultsImport'));
 const PublicResultsSubmit = lazy(() => import('./pages/PublicResultsSubmit'));
 const StaticPage = lazy(() => import('./pages/StaticPage'));
+const CustomFormPage = lazy(() => import('./pages/CustomFormPage'));
 const Videos = lazy(() => import('./pages/Videos'));
 const AthleteLogin = lazy(() => import('./pages/AthleteLogin'));
 const AthleteProfile = lazy(() => import('./pages/AthleteProfile'));
@@ -90,8 +93,10 @@ const ModifyRegistration = lazy(() => import('./pages/ModifyRegistration'));
 const SpeakerLogin = lazy(() => import('./pages/SpeakerLogin'));
 const SpeakerDashboard = lazy(() => import('./pages/SpeakerDashboard'));
 const ExternalEventResults = lazy(() => import('./pages/ExternalEventResults'));
+const Maintenance = lazy(() => import('./pages/Maintenance'));
 const ProtectedRoute = lazy(() => import('./components/ProtectedRoute'));
 const OrganizerProtectedRoute = lazy(() => import('./components/OrganizerProtectedRoute'));
+const ProtectedAdminRoute = lazy(() => import('./components/ProtectedAdminRoute'));
 
 function LoadingFallback() {
   return (
@@ -124,9 +129,11 @@ function App() {
     <ErrorBoundary>
       <AuthProvider>
         <Router>
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes>
-            <Route path="/" element={<Home />} />
+          <MaintenanceCheck>
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+              <Route path="/maintenance" element={<Maintenance />} />
+              <Route path="/" element={<Home />} />
             <Route path="/videos" element={<Videos />} />
             <Route path="/publier-resultats" element={<PublicResultsSubmit />} />
             <Route path="/resultats" element={<ResultsListPage />} />
@@ -142,6 +149,7 @@ function App() {
             <Route path="/events/:slug/volunteer" element={<VolunteerRegistration />} />
             <Route path="/services/:slug" element={<ServicePage />} />
             <Route path="/page/:slug" element={<StaticPage />} />
+            <Route path="/form/:slug" element={<CustomFormPage />} />
 
             <Route path="/athlete/login" element={<AthleteLogin />} />
             <Route path="/athlete/profile" element={<AthleteProfile />} />
@@ -359,25 +367,25 @@ function App() {
             <Route
               path="/admin/email-templates"
               element={
-                <ProtectedRoute>
+                <ProtectedAdminRoute module="email" permission="send">
                   <AdminEmailTemplates />
-                </ProtectedRoute>
+                </ProtectedAdminRoute>
               }
             />
             <Route
               path="/admin/email-manager"
               element={
-                <ProtectedRoute>
+                <ProtectedAdminRoute module="email" permission="view">
                   <AdminEmailManager />
-                </ProtectedRoute>
+                </ProtectedAdminRoute>
               }
             />
             <Route
               path="/admin/email-variables"
               element={
-                <ProtectedRoute>
+                <ProtectedAdminRoute module="email" permission="send">
                   <AdminEmailVariables />
-                </ProtectedRoute>
+                </ProtectedAdminRoute>
               }
             />
             <Route
@@ -415,9 +423,9 @@ function App() {
             <Route
               path="/admin/email-monitoring"
               element={
-                <ProtectedRoute>
+                <ProtectedAdminRoute module="email" permission="view">
                   <AdminEmailMonitoring />
-                </ProtectedRoute>
+                </ProtectedAdminRoute>
               }
             />
             <Route
@@ -463,9 +471,9 @@ function App() {
             <Route
               path="/admin/email-assets"
               element={
-                <ProtectedRoute>
+                <ProtectedAdminRoute module="email" permission="view">
                   <AdminEmailAssets />
-                </ProtectedRoute>
+                </ProtectedAdminRoute>
               }
             />
             <Route
@@ -489,6 +497,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AdminStaticPages />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/custom-forms"
+              element={
+                <ProtectedRoute>
+                  <AdminCustomForms />
                 </ProtectedRoute>
               }
             />
@@ -537,10 +553,11 @@ function App() {
             />
 
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </Router>
-    </AuthProvider>
+            </Routes>
+          </Suspense>
+          </MaintenanceCheck>
+        </Router>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { User, Calendar, Mail, Phone, MapPin, Home, CreditCard, FileText, AlertCircle, ArrowLeft, Users } from 'lucide-react';
 import { loadCountries, type Country } from '../lib/countries';
 import { checkCategoryRestriction } from '../lib/category-calculator';
 import RelayTeamRegistrationForm from './RelayTeamRegistrationForm';
+import LiabilityWaiverUpload from './LiabilityWaiverUpload';
+import ManualSignaturePad from './ManualSignaturePad';
 
 interface Race {
   id: string;
@@ -82,6 +84,7 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
   const [loading, setLoading] = useState(false);
   const [countries, setCountries] = useState<Country[]>([]);
   const [eventSlug, setEventSlug] = useState<string>('');
+  const [allRelaySegments, setAllRelaySegments] = useState<Record<string, any[]>>({});
 
   const [formData, setFormData] = useState(initialData?.athlete_data || {
     first_name: '',
@@ -111,6 +114,17 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
   const [ffaValidationErrors, setFfaValidationErrors] = useState<string[]>([]);
 
   const [selectedOptions, setSelectedOptions] = useState<Record<string, { choice_id?: string; value?: string; quantity: number }>>(initialData?.options_data || {});
+
+  // Debug: Log formData changes
+  useEffect(() => {
+    console.log('[FORMDATA] Changement détecté:', {
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      birthdate: formData.birthdate,
+      license_id: formData.license_id,
+      pps_number: formData.pps_number,
+    });
+  }, [formData]);
   const [categoryError, setCategoryError] = useState<string>('');
   const [eventDate, setEventDate] = useState<Date>(new Date());
   const [ffaVerifying, setFfaVerifying] = useState(false);
@@ -128,6 +142,13 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
   const [localStorageRestored, setLocalStorageRestored] = useState(false);
   const [isRelayRace, setIsRelayRace] = useState(false);
   const [relaySegments, setRelaySegments] = useState<any[]>([]);
+  const [isCheckingRelayRace, setIsCheckingRelayRace] = useState(false);
+
+  const [requiresLiabilityWaiver, setRequiresLiabilityWaiver] = useState(false);
+  const [waiverTemplateUrl, setWaiverTemplateUrl] = useState<string | null>(null);
+  const [liabilityWaiverId, setLiabilityWaiverId] = useState<string | null>(null);
+  const [signatureData, setSignatureData] = useState<string | null>(null);
+  const [waiverAccepted, setWaiverAccepted] = useState(false);
 
   // Deprecated: will be removed - replaced by cart system
   const isMultipleRegistration = false;
@@ -150,6 +171,60 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
   const requiresPSP = () => {
     return !isFFALicense() && formData.license_type && calorgCode;
   };
+
+  // IMPORTANT: useMemo DOIT être appelé AVANT tout return conditionnel
+  // Calculer le prix de l'équipe de manière réactive avec useMemo
+  const { teamPriceCents, teamCategory } = useMemo(() => {
+    // Valeurs par défaut
+    let priceCents = 0;
+    let category = 'Équipe';
+
+    // Si pas de données encore chargées, retourner les valeurs par défaut
+    if (racePricing.length === 0 || pricingPeriods.length === 0) {
+      console.log('⏳ [RELAY] En attente du chargement des tarifs et périodes...');
+      return { teamPriceCents: priceCents, teamCategory: category };
+    }
+
+    console.log('💰 [RELAY] Calcul du prix - racePricing:', racePricing.length, 'tarifs');
+    console.log('💰 [RELAY] pricingPeriods:', pricingPeriods.length, 'périodes');
+
+    // Afficher tous les tarifs pour déboguer
+    racePricing.forEach((pricing, idx) => {
+      const period = pricingPeriods.find(p => p.id === pricing.pricing_period_id);
+      console.log(`💰 [RELAY] Tarif ${idx + 1}:`, {
+        race_id: pricing.race_id,
+        price_cents: pricing.price_cents,
+        pricing_period_id: pricing.pricing_period_id,
+        license_type: pricing.license_types?.name,
+        period_found: !!period,
+        period_active: period?.active,
+      });
+    });
+
+    // Trouver le premier tarif actif pour cette course
+    const activePricing = racePricing.find(pricing => {
+      const period = pricingPeriods.find(p => p.id === pricing.pricing_period_id);
+      const isActive = period && period.active;
+      console.log(`🔍 [RELAY] Vérification tarif ${pricing.license_types?.name}:`, {
+        period_id: pricing.pricing_period_id,
+        period_found: !!period,
+        period_active: period?.active,
+        result: isActive,
+      });
+      return isActive;
+    });
+
+    if (activePricing) {
+      priceCents = activePricing.price_cents;
+      category = activePricing.license_types?.name || 'Équipe';
+      console.log('✅ [RELAY] Prix trouvé:', priceCents / 100, '€ -', category);
+    } else {
+      console.warn('⚠️ [RELAY] Aucun tarif actif trouvé parmi', racePricing.length, 'tarifs');
+      console.warn('⚠️ [RELAY] Périodes disponibles:', pricingPeriods.map(p => ({ id: p.id, active: p.active })));
+    }
+
+    return { teamPriceCents: priceCents, teamCategory: category };
+  }, [racePricing, pricingPeriods]);
 
   useEffect(() => {
     loadCountriesData();
@@ -264,9 +339,23 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
     if (!selectedRaceId) {
       setIsRelayRace(false);
       setRelaySegments([]);
+      setIsCheckingRelayRace(false);
       return;
     }
 
+    console.log('🔍 [RELAY] Vérification du type de course pour:', selectedRaceId);
+    setIsCheckingRelayRace(true);
+
+    // Utiliser les segments pré-chargés si disponibles
+    if (allRelaySegments[selectedRaceId] && allRelaySegments[selectedRaceId].length > 0) {
+      console.log('🏃 [RELAY] Segments de relais détectés (pré-chargés):', allRelaySegments[selectedRaceId].length);
+      setIsRelayRace(true);
+      setRelaySegments(allRelaySegments[selectedRaceId]);
+      setIsCheckingRelayRace(false);
+      return;
+    }
+
+    // Sinon charger depuis la base (fallback)
     const { data, error } = await supabase
       .from('relay_segments')
       .select('*')
@@ -274,13 +363,16 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
       .order('segment_order', { ascending: true });
 
     if (!error && data && data.length > 0) {
-      console.log('🏃 [RELAY] Segments de relais détectés:', data.length);
+      console.log('🏃 [RELAY] Segments de relais détectés (chargés):', data.length);
       setIsRelayRace(true);
       setRelaySegments(data);
     } else {
+      console.log('✅ [RELAY] Pas de segments relais - course solo');
       setIsRelayRace(false);
       setRelaySegments([]);
     }
+
+    setIsCheckingRelayRace(false);
   };
 
   useEffect(() => {
@@ -300,6 +392,7 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
       loadAgeRestrictions();
       loadGenderRestriction();
       loadRelaySegments();
+      loadWaiverRequirements();
     } else {
       console.log('⚠️ [PublicRegistrationForm] selectedRaceId vide, réinitialisation');
       setRaceOptions([]);
@@ -308,6 +401,9 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
       setPricingPeriods([]);
       setIsRelayRace(false);
       setRelaySegments([]);
+      setIsCheckingRelayRace(false);
+      setRequiresLiabilityWaiver(false);
+      setWaiverTemplateUrl(null);
     }
   }, [selectedRaceId]);
 
@@ -330,13 +426,29 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
     }
   };
 
+  const loadWaiverRequirements = async () => {
+    const { data, error } = await supabase
+      .from('races')
+      .select('requires_liability_waiver, waiver_template_url')
+      .eq('id', selectedRaceId)
+      .single();
+
+    if (!error && data) {
+      setRequiresLiabilityWaiver(data.requires_liability_waiver || false);
+      setWaiverTemplateUrl(data.waiver_template_url || null);
+    } else {
+      setRequiresLiabilityWaiver(false);
+      setWaiverTemplateUrl(null);
+    }
+  };
+
   const loadCountriesData = async () => {
     const countriesData = await loadCountries();
     setCountries(countriesData);
   };
 
   const loadRaces = async () => {
-    const [racesRes, eventRes] = await Promise.all([
+    const [racesRes, eventRes, segmentsRes] = await Promise.all([
       supabase
         .from('races')
         .select('*')
@@ -347,7 +459,11 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
         .from('events')
         .select('start_date')
         .eq('id', eventId)
-        .single()
+        .single(),
+      supabase
+        .from('relay_segments')
+        .select('*')
+        .order('race_id, segment_order')
     ]);
 
     if (!racesRes.error && racesRes.data) {
@@ -356,6 +472,19 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
 
     if (!eventRes.error && eventRes.data) {
       setEventDate(new Date(eventRes.data.start_date));
+    }
+
+    // Pré-charger tous les segments relais pour éviter le délai
+    if (!segmentsRes.error && segmentsRes.data) {
+      const segmentsByRace: Record<string, any[]> = {};
+      segmentsRes.data.forEach(segment => {
+        if (!segmentsByRace[segment.race_id]) {
+          segmentsByRace[segment.race_id] = [];
+        }
+        segmentsByRace[segment.race_id].push(segment);
+      });
+      setAllRelaySegments(segmentsByRace);
+      console.log('📦 [RELAY] Tous les segments pré-chargés:', Object.keys(segmentsByRace).length, 'courses relais');
     }
   };
 
@@ -876,7 +1005,17 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
   };
 
   const verifyPSP = async () => {
-    if (!formData.pps_number) return;
+    console.log('[DEBUG] ===== DÉBUT VÉRIFICATION PSP =====');
+    console.log('[DEBUG] formData.pps_number:', formData.pps_number);
+    console.log('[DEBUG] formData.last_name:', formData.last_name);
+    console.log('[DEBUG] formData.first_name:', formData.first_name);
+    console.log('[DEBUG] formData.birthdate:', formData.birthdate);
+    console.log('[DEBUG] ======================================');
+
+    if (!formData.pps_number) {
+      console.log('[DEBUG] PSP: Aucun numéro PSP fourni');
+      return;
+    }
 
     if (!formData.pps_number.toUpperCase().startsWith('P')) {
       setPspVerificationMessage('❌ Le numéro PSP (Pass Prévention Santé) doit commencer par la lettre P');
@@ -1012,6 +1151,14 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
       return false;
     }
 
+    // Vérifier la décharge de responsabilité si requise
+    if (requiresLiabilityWaiver) {
+      if (!liabilityWaiverId || !signatureData) {
+        console.log('❌ Décharge de responsabilité incomplète:', { liabilityWaiverId, hasSignature: !!signatureData });
+        return false;
+      }
+    }
+
     // Vérifier les options obligatoires
     const requiredOptions = raceOptions.filter(opt => opt.is_required);
     console.log('📋 Options obligatoires:', requiredOptions.length);
@@ -1029,8 +1176,8 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
         // C'est un input texte → on vérifie value
         isValid = !!(selection?.value && selection.value.trim() !== '');
       } else {
-        // C'est une checkbox simple ou autre → on vérifie juste qu'elle existe
-        isValid = !!selection && selection.quantity > 0;
+        // C'est une checkbox simple ou autre → on vérifie que quantity > 0
+        isValid = !!selection && typeof selection.quantity === 'number' && selection.quantity > 0;
       }
 
       if (!isValid) {
@@ -1624,6 +1771,9 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
         athlete_data: { ...formData, age_category: categoryCheck.category },
         category,
         session_token: sessionToken,
+        liability_waiver_id: liabilityWaiverId,
+        signature_data: signatureData,
+        waiver_accepted: waiverAccepted,
       };
 
       console.log('📦 Données inscription:', registrationData);
@@ -1649,9 +1799,39 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
     }
   };
 
+  // Afficher un loader pendant la vérification du type de course
+  if (isCheckingRelayRace && selectedRaceId) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg relative">
+        <div className="flex items-center gap-4 mb-8">
+          <button
+            type="button"
+            onClick={() => navigate(eventSlug ? `/events/${eventSlug}` : '/')}
+            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="font-medium">Retour à l'événement</span>
+          </button>
+        </div>
+
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Inscription à l'événement</h1>
+
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-pink-200 border-t-pink-600 rounded-full animate-spin"></div>
+            <Users className="w-8 h-8 text-pink-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+          </div>
+          <p className="mt-6 text-lg text-gray-600 font-medium">Chargement du formulaire d'inscription...</p>
+          <p className="mt-2 text-sm text-gray-500">Vérification du type d'épreuve en cours</p>
+        </div>
+      </div>
+    );
+  }
+
   // Si c'est un relais, afficher le formulaire spécifique relais
   if (isRelayRace && relaySegments.length > 0) {
     const selectedRace = races.find(r => r.id === selectedRaceId);
+
     return (
       <RelayTeamRegistrationForm
         raceId={selectedRaceId}
@@ -1664,6 +1844,10 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
         eventDate={eventDate ? eventDate.toISOString().split('T')[0] : undefined}
         calorgCode={calorgCode}
         isFFAAffiliated={!!calorgCode}
+        teamCategory={teamCategory}
+        teamPriceCents={teamPriceCents}
+        racePricing={racePricing}
+        pricingPeriods={pricingPeriods}
         onComplete={(teamData) => {
           console.log('🏁 [RELAY] Équipe complète:', teamData);
           onComplete({
@@ -1674,8 +1858,12 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
           });
         }}
         onBack={() => {
-          setSelectedRaceId('');
-          setIsRelayRace(false);
+          // Retourner à la page de l'événement au lieu du formulaire solo
+          if (eventSlug) {
+            navigate(`/events/${eventSlug}`);
+          } else {
+            navigate(-1);
+          }
         }}
       />
     );
@@ -2262,7 +2450,12 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
                       />
                       <button
                         type="button"
-                        onClick={verifyFFALicense}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          console.log('[BTN FFA] Cliqué !');
+                          console.log('[BTN FFA] formData:', { license_id: formData.license_id, last_name: formData.last_name, first_name: formData.first_name, birthdate: formData.birthdate });
+                          verifyFFALicense();
+                        }}
                         disabled={ffaVerifying || !formData.license_id || !formData.last_name || !formData.first_name || !formData.birthdate}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition whitespace-nowrap"
                         title={
@@ -2337,7 +2530,12 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
                         />
                         <button
                           type="button"
-                          onClick={verifyPSP}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            console.log('[BTN PSP] Cliqué !');
+                            console.log('[BTN PSP] formData:', { pps_number: formData.pps_number, last_name: formData.last_name, first_name: formData.first_name, birthdate: formData.birthdate });
+                            verifyPSP();
+                          }}
                           disabled={pspVerifying || !formData.pps_number || !formData.last_name || !formData.first_name || !formData.birthdate}
                           className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition whitespace-nowrap"
                           title={
@@ -2570,6 +2768,49 @@ export default function PublicRegistrationForm({ eventId, organizerId, onComplet
                       dangerouslySetInnerHTML={{ __html: raceRegulations }}
                     />
                   </div>
+                </div>
+              )}
+
+              {requiresLiabilityWaiver && (
+                <div className="border-t pt-6 mt-6 space-y-6">
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <AlertCircle className="h-5 w-5 text-yellow-400" />
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="text-sm font-medium text-yellow-800">
+                          Décharge de responsabilité obligatoire
+                        </h3>
+                        <div className="mt-2 text-sm text-yellow-700">
+                          <p>
+                            Cette épreuve nécessite une décharge de responsabilité signée.
+                            Veuillez uploader votre document et apposer votre signature.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <LiabilityWaiverUpload
+                    athleteId={formData.email}
+                    onUploadComplete={(waiverId, fileUrl) => {
+                      setLiabilityWaiverId(waiverId);
+                      setWaiverAccepted(true);
+                    }}
+                    templateUrl={waiverTemplateUrl}
+                    required={true}
+                  />
+
+                  <ManualSignaturePad
+                    onSignatureComplete={(signatureData) => {
+                      setSignatureData(signatureData);
+                    }}
+                    onClear={() => {
+                      setSignatureData(null);
+                    }}
+                    required={true}
+                  />
                 </div>
               )}
 

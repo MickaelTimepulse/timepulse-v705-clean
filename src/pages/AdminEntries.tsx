@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/Admin/AdminLayout';
-import { FileText, Download, Filter, Calendar, Users, DollarSign, Eye, Search, X, RotateCcw, Mail, Info, Upload } from 'lucide-react';
+import { FileText, Download, Filter, Calendar, Users, DollarSign, Eye, Search, X, RotateCcw, Mail, Info, Upload, Settings } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { exportToCSV, exportToElogica, exportStats, exportEmails, exportBibLabels, ExportEntry } from '../lib/excel-export';
 import { emailService } from '../lib/email-service';
@@ -8,6 +9,7 @@ import { formatAthleteName } from '../lib/formatters';
 import EntriesCSVImporter from '../components/EntriesCSVImporter';
 
 export default function AdminEntries() {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -94,6 +96,11 @@ export default function AdminEntries() {
         license_type: entry.license_type,
         pps_number: entry.pps_number,
         pps_expiry_date: entry.pps_expiry_date,
+        ffa_relcod: entry.ffa_relcod,
+        ffa_club_code: entry.ffa_club_code,
+        ffa_league_abbr: entry.ffa_league_abbr,
+        ffa_department_abbr: entry.ffa_department_abbr,
+        ffa_catcod: entry.ffa_catcod,
         created_at: entry.created_at,
         registration_date: entry.registration_date,
         events: {
@@ -172,31 +179,103 @@ export default function AdminEntries() {
     }
   }
 
-  function handleExportCSV() {
-    const exportData: ExportEntry[] = filteredEntries.map(entry => ({
-      bibNumber: entry.bib_number || 0,
-      firstName: entry.athletes?.first_name || '',
-      lastName: entry.athletes?.last_name || '',
-      gender: entry.athletes?.gender || '',
-      birthDate: entry.athletes?.birth_date || '',
-      nationality: entry.athletes?.nationality_code || '',
-      email: entry.athletes?.email || '',
-      phone: entry.athletes?.phone_mobile || '',
-      category: entry.category_label || '',
-      raceName: entry.races?.name || '',
-      price: entry.total_price || 0,
-      status: entry.payment_status || '',
-      registrationDate: entry.created_at || '',
-      licenseNumber: entry.athletes?.license_number,
-      club: entry.athletes?.club,
-      ppsNumber: entry.pps_number || entry.athletes?.pps_number,
-      ppsExpiryDate: entry.pps_expiry_date || entry.athletes?.pps_expiry_date,
-      emergencyContact: entry.emergency_contact_name,
-      emergencyPhone: entry.emergency_contact_phone
-    }));
+  async function handleExportCSV() {
+    try {
+      // Charger toutes les options pour toutes les inscriptions
+      const entryIds = filteredEntries.map(e => e.id);
 
-    exportToCSV(exportData, `inscriptions-${new Date().toISOString().split('T')[0]}.csv`);
-    setShowExportMenu(false);
+      const { data: registrationOptions, error } = await supabase
+        .from('registration_options')
+        .select(`
+          entry_id,
+          option_id,
+          choice_id,
+          value,
+          race_options!inner(label),
+          race_option_choices(label)
+        `)
+        .in('entry_id', entryIds);
+
+      if (error) throw error;
+
+      // Charger les types de licence pour tous les athlètes
+      const athleteIds = filteredEntries.map(e => e.athlete_id).filter(Boolean);
+
+      const { data: licenseData, error: licenseError } = await supabase
+        .from('athletes')
+        .select(`
+          id,
+          license_number,
+          license_type,
+          license_types!inner(name, federation)
+        `)
+        .in('id', athleteIds);
+
+      if (licenseError) throw licenseError;
+
+      // Créer un mapping athlete_id → license info
+      const licenseByAthlete: Record<string, { licenseType: string; federation: string }> = {};
+      (licenseData || []).forEach((lic: any) => {
+        licenseByAthlete[lic.id] = {
+          licenseType: lic.license_types?.name || '',
+          federation: lic.license_types?.federation || ''
+        };
+      });
+
+      // Créer un mapping entry_id → options
+      const optionsByEntry: Record<string, Record<string, string>> = {};
+
+      (registrationOptions || []).forEach((opt: any) => {
+        if (!optionsByEntry[opt.entry_id]) {
+          optionsByEntry[opt.entry_id] = {};
+        }
+
+        const optionLabel = opt.race_options?.label || 'Option';
+        const choiceLabel = opt.race_option_choices?.label || opt.value || '';
+
+        optionsByEntry[opt.entry_id][optionLabel] = choiceLabel;
+      });
+
+      const exportData: ExportEntry[] = filteredEntries.map(entry => {
+        const licenseInfo = licenseByAthlete[entry.athlete_id] || {};
+
+        return {
+          bibNumber: entry.bib_number || 0,
+          firstName: entry.athletes?.first_name || '',
+          lastName: entry.athletes?.last_name || '',
+          gender: entry.athletes?.gender || '',
+          birthDate: entry.athletes?.birth_date || '',
+          nationality: entry.athletes?.nationality_code || '',
+          email: entry.athletes?.email || '',
+          phone: entry.athletes?.phone_mobile || '',
+          category: entry.category_label || '',
+          raceName: entry.races?.name || '',
+          price: entry.total_price || 0,
+          status: entry.payment_status || '',
+          registrationDate: entry.created_at || '',
+          licenseNumber: entry.athletes?.license_number || '',
+          licenseType: licenseInfo.licenseType || '',
+          federation: licenseInfo.federation || '',
+          club: entry.athletes?.club || '',
+          ffaRelcod: entry.ffa_relcod || '',
+          ffaClubCode: entry.ffa_club_code || '',
+          ffaLeagueAbbr: entry.ffa_league_abbr || '',
+          ffaDepartmentAbbr: entry.ffa_department_abbr || '',
+          ffaCatcod: entry.ffa_catcod || '',
+          ppsNumber: entry.pps_number || entry.athletes?.pps_number || '',
+          ppsExpiryDate: entry.pps_expiry_date || entry.athletes?.pps_expiry_date || '',
+          emergencyContact: entry.emergency_contact_name || '',
+          emergencyPhone: entry.emergency_contact_phone || '',
+          options: optionsByEntry[entry.id] || {}
+        };
+      });
+
+      exportToCSV(exportData, `inscriptions-${new Date().toISOString().split('T')[0]}.csv`);
+      setShowExportMenu(false);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Erreur lors de l\'export CSV');
+    }
   }
 
   function handleExportElogica() {
@@ -691,6 +770,17 @@ export default function AdminEntries() {
                 <option key={event.id} value={event.id}>{event.name}</option>
               ))}
             </select>
+
+            {filterEvent !== 'all' && (
+              <button
+                onClick={() => navigate(`/organizer/entries?eventId=${filterEvent}`)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                title="Gestion détaillée de l'événement avec export CSV avancé et actualisation FFA"
+              >
+                <Settings className="w-4 h-4" />
+                Gérer cet événement
+              </button>
+            )}
 
             <select
               value={filterStatus}
